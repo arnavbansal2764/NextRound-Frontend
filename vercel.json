@@ -1,7 +1,7 @@
 {
-  "functions": {
-    "api/**/*.ts": {
-      "maxDuration": 10
+    "functions": {
+        "api/cultural-fit/**/*.ts": {
+            "maxDuration": 30
+        }
     }
-  }
 }
