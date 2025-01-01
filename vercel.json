@@ -1,6 +1,6 @@
 {
     "functions": {
-        "api/cultural-fit/**/*.ts": {
+        "api/**/*.ts": {
             "maxDuration": 30
         }
     }
