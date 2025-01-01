@@ -1,0 +1,61 @@
+/* From Uiverse.io by terenceodonoghue */
+.container-loading {
+    position: fixed;
+    /* Use fixed positioning to keep it in view */
+    top: 50%;
+    left: 50%;
+    border-radius: 50%;
+    height: 96px;
+    width: 96px;
+    animation: rotate_3922 1.2s linear infinite;
+    background-image: linear-gradient(#9b59b6, #84cdfa, #5ad1cd);
+    z-index: 9999;
+}
+
+.container-loading span {
+    position: absolute;
+    border-radius: 50%;
+    height: 100%;
+    width: 100%;
+    background-image: linear-gradient(#9b59b6, #84cdfa, #5ad1cd);
+    /* Gradient without solid color */
+}
+
+.container-loading span:nth-of-type(1) {
+    filter: blur(5px);
+}
+
+.container-loading span:nth-of-type(2) {
+    filter: blur(10px);
+}
+
+.container-loading span:nth-of-type(3) {
+    filter: blur(25px);
+}
+
+.container-loading span:nth-of-type(4) {
+    filter: blur(50px);
+}
+
+.container-loading::after {
+    content: "";
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    background-color: #fff;
+    /* Retain the white inner circle */
+    border: solid 5px #ffffff;
+    border-radius: 50%;
+}
+
+@keyframes rotate_3922 {
+    from {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
