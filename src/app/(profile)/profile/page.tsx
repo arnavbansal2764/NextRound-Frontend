@@ -166,7 +166,7 @@ export default function ProfilePage() {
   );
 }
 
-function ProfileSection({ title, children }) {
+function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Card>
       <CardContent className="p-6">
@@ -177,7 +177,7 @@ function ProfileSection({ title, children }) {
   );
 }
 
-function InfoItem({ icon, text }) {
+function InfoItem({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
     <div className="flex items-center space-x-2">
       {icon}
@@ -186,7 +186,7 @@ function InfoItem({ icon, text }) {
   );
 }
 
-function ActionButton({ icon, label, onClick }) {
+function ActionButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
     <motion.div
       whileHover={{ scale: 1.05 }}
@@ -204,7 +204,9 @@ function ActionButton({ icon, label, onClick }) {
   );
 }
 
-function BriefcaseIcon(props) {
+interface IconProps extends React.SVGProps<SVGSVGElement> {}
+
+function BriefcaseIcon(props: IconProps) {
   return (
     <svg
       {...props}
@@ -224,7 +226,9 @@ function BriefcaseIcon(props) {
   );
 }
 
-function CalendarIcon(props) {
+interface CalendarIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function CalendarIcon(props: CalendarIconProps) {
   return (
     <svg
       {...props}
@@ -246,7 +250,9 @@ function CalendarIcon(props) {
   );
 }
 
-function GraduationCapIcon(props) {
+interface GraduationCapIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function GraduationCapIcon(props: GraduationCapIconProps) {
   return (
     <svg
       {...props}
@@ -267,7 +273,9 @@ function GraduationCapIcon(props) {
   );
 }
 
-function SchoolIcon(props) {
+interface SchoolIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function SchoolIcon(props: SchoolIconProps) {
   return (
     <svg
       {...props}
@@ -291,7 +299,9 @@ function SchoolIcon(props) {
   );
 }
 
-function MailIcon(props) {
+interface MailIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function MailIcon(props: MailIconProps) {
   return (
     <svg
       {...props}
@@ -311,7 +321,9 @@ function MailIcon(props) {
   );
 }
 
-function PhoneIcon(props) {
+interface PhoneIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function PhoneIcon(props: PhoneIconProps) {
   return (
     <svg
       {...props}
@@ -330,7 +342,9 @@ function PhoneIcon(props) {
   );
 }
 
-function CodeIcon(props) {
+interface CodeIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function CodeIcon(props: CodeIconProps) {
   return (
     <svg
       {...props}
@@ -350,7 +364,9 @@ function CodeIcon(props) {
   );
 }
 
-function DatabaseIcon(props) {
+interface DatabaseIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function DatabaseIcon(props: DatabaseIconProps) {
   return (
     <svg
       {...props}
@@ -371,7 +387,9 @@ function DatabaseIcon(props) {
   );
 }
 
-function CloudIcon(props) {
+interface CloudIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function CloudIcon(props: CloudIconProps) {
   return (
     <svg
       {...props}
@@ -390,7 +408,9 @@ function CloudIcon(props) {
   );
 }
 
-function UserIcon(props) {
+interface UserIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function UserIcon(props: UserIconProps) {
   return (
     <svg
       {...props}
@@ -410,7 +430,9 @@ function UserIcon(props) {
   );
 }
 
-function PlusCircleIcon(props) {
+interface PlusCircleIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function PlusCircleIcon(props: PlusCircleIconProps) {
   return (
     <svg
       {...props}
@@ -431,7 +453,9 @@ function PlusCircleIcon(props) {
   );
 }
 
-function UsersIcon(props) {
+interface UsersIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function UsersIcon(props: UsersIconProps) {
   return (
     <svg
       {...props}
@@ -453,7 +477,9 @@ function UsersIcon(props) {
   );
 }
 
-function FileTextIcon(props) {
+interface FileTextIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function FileTextIcon(props: FileTextIconProps) {
   return (
     <svg
       {...props}
@@ -476,7 +502,9 @@ function FileTextIcon(props) {
   );
 }
 
-function ClipboardListIcon(props) {
+interface ClipboardListIconProps extends React.SVGProps<SVGSVGElement> {}
+
+function ClipboardListIcon(props: ClipboardListIconProps) {
   return (
     <svg
       {...props}
