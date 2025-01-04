@@ -9,13 +9,10 @@ export class RedisManager {
 
     constructor() {
 
-        this.client = createClient({
-            url: process.env.REDIS_URL
-        });
+        this.client = createClient({ database: 1 });
         this.client.connect();
-        this.publisher = createClient({
-            url: process.env.REDIS_URL
-        });
+        //{ database: 1 }
+        this.publisher = createClient({ database: 1 });
         this.publisher.connect();
     }
 

@@ -5,14 +5,7 @@ import { BiDollar } from "react-icons/bi";
 
 interface FormData {
     fullName: string;
-    birthdate: Date;
-    path: [];
-    education: string;
-    linkedin: string;
-    github: string;
-    codeforces: string;
     resume: string;
-    email: string;
 }
 
 interface InputProps {
