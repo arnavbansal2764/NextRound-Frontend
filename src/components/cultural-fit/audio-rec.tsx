@@ -21,7 +21,42 @@ interface AnalysisResult {
         primary_traits: Segment[];
         segment_secondary_traits: SegmentSecondaryTrait[];
     }
-
+const questionsPool = [
+    "Introduce yourself.",
+    "What motivates you to come to work every day?",
+    "How do you handle feedback from peers or supervisors?",
+    "Can you describe your ideal work environment?",
+    "How do you typically approach problem-solving in a team setting?",
+    "What does success mean to you in your professional life?",
+    "How do you balance your work responsibilities with personal life?",
+    "What do you do when you’re assigned a task outside your comfort zone?",
+    "How do you handle conflicts with coworkers?",
+    "Tell us about a time when you had to quickly learn something new to complete a task.",
+    "How do you stay organized and manage your time?",
+    "How do you handle situations where you’re working with someone with a completely different perspective?",
+    "Can you share an example of how you’ve dealt with uncertainty?",
+    "What do you value most in a manager or leader?",
+    "How do you prepare yourself when taking on a new responsibility or role?",
+    "What are your strengths and weaknesses?",
+    "How do you ensure a positive and collaborative atmosphere in a team?",
+    "Share an experience where you improved team morale or engagement.",
+    "How do you approach giving constructive feedback to a colleague?",
+    "What strategies do you use to stay positive during challenging times?",
+    "How do you approach situations where you need to ask for help?",
+    "How do you handle situations where you disagree with a decision?",
+    "How do you ensure your work contributes to the organization’s goals?",
+    "What is your approach to mentoring or helping a less experienced colleague?",
+    "How do you stay updated on trends or changes in your field?",
+    "What have you done in the past to go above and beyond for your team or company?",
+    "How do you approach networking or building professional connections?",
+    "What steps do you take to align your personal goals with your professional objectives?",
+    "How do you handle tight deadlines or high-pressure situations at work?",
+    "Where do you see yourself in 5 years?"
+]
+function getRandomItemFromArray(arr: string[]): string {
+  const randomIndex = Math.floor(Math.random() * arr.length);
+  return arr[randomIndex];
+}
 const CulturalFitClient = () => {
     const [isRecording, setIsRecording] = useState(false);
     const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -34,7 +69,10 @@ const CulturalFitClient = () => {
     const loading = useLoading();
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [question, setQuestion] = useState<string>('');
     const startRecording = () => {
+        const randomQuestion = getRandomItemFromArray(questionsPool);
+        setQuestion(randomQuestion);
         setIsInterviewStarted(true)
         setAudioFile(null)
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -111,7 +149,7 @@ const CulturalFitClient = () => {
             setError("Failed to upload audio. Please try again.");
         }
     };
-    const question = "Tell me about yourself"
+    
     const analyzeAudio = async (audioUrl: string) => {
         try {
             const response = await axios.post('/api/cultural-fit', { audioUrl,question });
@@ -125,9 +163,6 @@ const CulturalFitClient = () => {
         }
     };
 
-    const formatResult = (result: string) => {
-        return result.replace(/\n/g, '<br>').replace(/\*\*/g, '');
-    };
 
     return (
         <div className="min-h-screen flex items-center justify-center">
@@ -159,7 +194,7 @@ const CulturalFitClient = () => {
                             >
                                 <Progress value={progress} className="w-full mb-6" />
                                 <h2 className="text-xl font-semibold mb-4 text-gray-800">
-                                    <Typewriter text={"Tell me about yourself"} />
+                                    <Typewriter text={`${question}`} />
                                 </h2>
 
                                 <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-8">
