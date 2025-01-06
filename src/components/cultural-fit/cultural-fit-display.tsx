@@ -1,124 +1,105 @@
-"use client"
+"use client";
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { motion } from 'framer-motion';
-
-interface Emotion {
-    name: string;
-    value: number;
-}
+import { Emotion, Segment, SegmentSecondaryTrait, Trait } from '@/lib/redis/types';
 
 interface CulturalFitAnalysisProps {
-    emotions: Emotion[][];
+  result: string;
+  primary_traits: Segment[];
+  segment_secondary_traits: SegmentSecondaryTrait[];
 }
 
-function generateDistinctColors(count: number): string[] {
-    const hueStep = 360 / count;
-    const saturationLevels = [100, 75, 50];
-    const lightnessLevels = [50, 60, 70];
+const CulturalFitAnalysis: React.FC<{ data: CulturalFitAnalysisProps }> = ({ data }) => {
+  const renderEmotions = (emotions: Emotion[]) => {
+    return emotions.map((emotion, index) => (
+      <li key={index}>
+        {emotion.emotion_name}: {emotion.emotion_score.toFixed(2)}
+      </li>
+    ));
+  };
 
-    return Array.from({ length: count }, (_, i) => {
-        const hue = i * hueStep;
-        const saturationIndex = Math.floor(i / (count / saturationLevels.length));
-        const lightnessIndex = i % lightnessLevels.length;
-        const saturation = saturationLevels[saturationIndex];
-        const lightness = lightnessLevels[lightnessIndex];
-        return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-    });
-}
+  const renderTraits = (traits: Trait[]) => {
+    return traits.map((trait, index) => (
+      <li key={index}>
+        {trait.trait}: {trait.score.toFixed(2)}
+      </li>
+    ));
+  };
 
-export function CulturalFitAnalysis({ emotions }: CulturalFitAnalysisProps) {
-    const aggregatedEmotions = emotions.flat().reduce((acc, emotion) => {
-        if (!acc[emotion.name]) {
-            acc[emotion.name] = 0;
-        }
-        acc[emotion.name] += emotion.value;
-        return acc;
-    }, {} as Record<string, number>);
+  // Split long text into readable paragraphs
+  const sections = data.result
+    .split("\n\n")
+    .filter((section) => section.trim() !== '');
 
-    const pieData = Object.entries(aggregatedEmotions)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="w-full mt-6 space-y-6"
+    >
+      {/* Overall Cultural-Fit Explanation */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Cultural Fit Analysis</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sections.map((section, index) => (
+            <p key={index} className="mb-4 text-gray-800">
+              {section}
+            </p>
+          ))}
+        </CardContent>
+      </Card>
 
-    const COLORS = generateDistinctColors(pieData.length);
-
-    const emotionColors = pieData.reduce((acc, emotion, index) => {
-        acc[emotion.name] = COLORS[index];
-        return acc;
-    }, {} as Record<string, string>);
-
-    const CustomizedLegend = ({ payload }: { payload: any[] }) => (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 text-xs sm:text-sm md:text-base">
-            {payload.map((entry, index) => (
-                <div key={`legend-${index}`} className="flex items-center">
-                    <div
-                        className="w-3 h-3 mr-2 rounded-full"
-                        style={{ backgroundColor: entry.color }}
-                    />
-                    <span className="truncate">{entry.value}</span>
-                </div>
+      {/* Primary Traits */}
+      {data.primary_traits && data.primary_traits.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Primary Traits</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.primary_traits.map((pt, idx) => (
+              <div key={idx} className="mb-4">
+                <p className="font-semibold text-gray-800 mb-1">
+                  Segment: {pt.segment}
+                </p>
+                <ul className="list-disc list-inside ml-4">
+                  {renderEmotions(pt.emotions)}
+                </ul>
+              </div>
             ))}
-        </div>
-    );
+          </CardContent>
+        </Card>
+      )}
 
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="w-full mt-6"
-        >
-            <Card className="w-full shadow-lg">
-                <CardHeader>
-                    <CardTitle className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-center">
-                        Cultural Fit Analysis
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="p-2 sm:p-4 md:p-6">
-                    <div className="flex flex-col md:flex-row items-center justify-center">
-                        <ChartContainer
-                            config={pieData.reduce((acc, emotion, index) => {
-                                acc[emotion.name] = {
-                                    label: emotion.name,
-                                    color: emotionColors[emotion.name],
-                                };
-                                return acc;
-                            }, {} as Record<string, { label: string; color: string }>)}
-                            className="h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] w-full md:w-2/3"
-                        >
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={pieData}
-                                        cx="50%"
-                                        cy="50%"
-                                        labelLine={false}
-                                        outerRadius="80%"
-                                        fill="#8884d8"
-                                        dataKey="value"
-                                    >
-                                        {pieData.map((entry, index) => (
-                                            <Cell
-                                                key={`cell-${index}`}
-                                                fill={emotionColors[entry.name]}
-                                                className="transition-all duration-300 ease-in-out hover:opacity-80"
-                                            />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip content={<ChartTooltipContent />} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </ChartContainer>
-                        <div className="w-full md:w-1/3 mt-4 md:mt-0 md:ml-4">
-                            <CustomizedLegend payload={pieData.map(item => ({ value: item.name, color: emotionColors[item.name] }))} />
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-        </motion.div>
-    );
-}
+      {/* Secondary Traits */}
+      {data.segment_secondary_traits &&
+        data.segment_secondary_traits.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Secondary Traits</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {data.segment_secondary_traits.map((st, idx) => (
+                <div key={idx} className="mb-4">
+                  <p className="font-semibold text-gray-800 mb-1">
+                    Segment: {st.segment}
+                  </p>
+                  <ul className="list-disc list-inside ml-4">
+                    {renderTraits(st.traits)}
+                  </ul>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+    </motion.div>
+  );
+};
 
+export default CulturalFitAnalysis;

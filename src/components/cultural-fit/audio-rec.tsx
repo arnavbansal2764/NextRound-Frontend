@@ -11,18 +11,16 @@ import { Mic, MicOff, Send, Play } from 'lucide-react'
 import Typewriter from 'react-ts-typewriter'
 import useLoading from "@/hooks/useLoading";
 import VoiceAnimation from "./voice-animation";
-import { CulturalFitAnalysis } from "./cultural-fit-display";
+import CulturalFitAnalysis  from "./cultural-fit-display";
+import { Segment, SegmentSecondaryTrait } from "@/lib/redis/types";
 const { useUploadThing } = generateReactHelpers<OurFileRouter>();
-const exampleResponse = { "emotions": [["Interest: 0.4721828103065491", "Amusement: 0.43491387367248535", "Surprise (positive): 0.28914597630500793"], ["Concentration: 0.6366159319877625", "Interest: 0.5614610910415649", "Determination: 0.4061761498451233"], ["Satisfaction: 0.22752264142036438", "Contentment: 0.17091824114322662", "Pride: 0.16791008412837982"], ["Realization: 0.26484888792037964", "Sadness: 0.1887257695198059", "Disappointment: 0.1877591609954834"], ["Determination: 0.40023890137672424", "Interest: 0.320429265499115", "Satisfaction: 0.22500911355018616"], ["Interest: 0.7706456184387207", "Determination: 0.41761326789855957", "Excitement: 0.4144953191280365"]], "result": "Summary and Feedback:\n\nYour response includes a mix of statements about yourself, your interests, and your proficiencies. However, it appears that your response is fragmented and lacks cohesion. \n\nSome notable aspects of your response include:\n\n- You started with a friendly tone, introducing yourself with enthusiasm (segment 0).\n- You showed interest in your profession and mentioned your proficiency in building web applications using Flask and Python (segments 1 and 3).\n- You also mentioned your interest in implementing AI with a tool called Monster Truck (segment 2), but this seems to be an unusual and unclear statement.\n- Your response had a brief mention of your passion for other activities, such as badminton and other non-coding related hobbies (segment 5).\n- Your emotions fluctuated throughout the response, showcasing enthusiasm, determination, and interest in various tasks.\n\nTips for Improvement:\n\n1. Structure your response: Start with a clear and concise introduction, followed by your professional experience, skills, and interests. \n2. Be clear about your skills and experiences: While you mentioned your proficiency in using Flask and Python, it would be helpful to provide more specific examples or projects related to these skills. \n3. Be prepared for unusual questions: It is possible that you will be asked questions that you are not fully prepared for. A good strategy is to think on your feet and briefly describe your approach or experience related to the topic.\n4. Show consistency in tone and emotions: Although your response had some positive emotions, it was also marked by some negative emotions (e.g., sadness in segment 3). Take a moment to compose yourself before responding.\n\nOverall Score: 6/10\n\nYou showed enthusiasm and a willingness to engage in the conversation, but your response lacked cohesion and clarity. Focus on structuring your response, providing clear examples of your skills, and maintaining a consistent tone, and you will see significant improvement.\n\n---\n\nInterviewer Response:\n\nNice to meet you, Arnav! I'm here today to get to know you better. Let's start by talking about your experience with web development. What's your background in building web applications, and what tools or technologies do you find particularly exciting to work with?\n\nPlease respond as if you were Arnav, and I will provide feedback on your response." }
-interface Emotion {
-    name: string;
-    value: number;
-}
 
+import axios from 'axios';
 interface AnalysisResult {
-    emotions: Emotion[][];
-    result: string;
-}
+        result: string;
+        primary_traits: Segment[];
+        segment_secondary_traits: SegmentSecondaryTrait[];
+    }
 
 const CulturalFitClient = () => {
     const [isRecording, setIsRecording] = useState(false);
@@ -113,41 +111,13 @@ const CulturalFitClient = () => {
             setError("Failed to upload audio. Please try again.");
         }
     };
-
+    const question = "Tell me about yourself"
     const analyzeAudio = async (audioUrl: string) => {
         try {
-            const response = await fetch('/api/cultural-fit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ audioUrl }),
-            });
+            const response = await axios.post('/api/cultural-fit', { audioUrl,question });
 
-            if (!response.ok) {
-                throw new Error('Failed to analyze audio');
-            }
-
-            const result = await response.json();
-
-            const processedResult: AnalysisResult = {
-                emotions: result.emotions.map((segment: string[]) => {
-                    return segment.map((emotion: string) => {
-                        const [name, valueStr] = emotion.split(': ');
-                        return {
-                            name,
-                            value: parseFloat(valueStr)
-                        };
-                    });
-                }),
-                result: result.result
-            };
-            console.log('Original analysis result:', result);
-            console.log(
-                'Processed analysis result:',
-                processedResult
-            )
-            setAnalysisResult(processedResult);
+            console.log(response)
+            setAnalysisResult(response.data);
             setError(null); // Clear any previous errors
         } catch (error) {
             console.error('Error analyzing audio:', error);
@@ -231,14 +201,8 @@ const CulturalFitClient = () => {
                                         className="mt-8"
                                     >
                                         <h2 className="text-2xl font-bold mb-4">Analysis Results</h2>
-                                        <CulturalFitAnalysis emotions={analysisResult.emotions} />
-                                        <div className="mt-8">
-                                            <h3 className="text-xl font-semibold mb-2">Summary</h3>
-                                            <p
-                                                className="text-gray-700 leading-relaxed"
-                                                dangerouslySetInnerHTML={{ __html: formatResult(analysisResult.result) }}
-                                            />
-                                        </div>
+                                        <CulturalFitAnalysis data={analysisResult} />
+                                        
                                     </motion.div>
                                 )}
                             </motion.div>
