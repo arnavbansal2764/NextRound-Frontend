@@ -5,12 +5,13 @@ import { NextResponse } from 'next/server';
 export async function POST(req: Request) {
     try {
         console.log('POST /api/cultural-fit');
-        const { audioUrl } = await req.json();
-
+        const { audioUrl,question } = await req.json();
+       
         const res = await RedisManager.getInstance().sendAndAwait({
             type: GET_CULTURAL_FIT,
             data: {
                 audio_url: audioUrl,
+                question: question,
             },
           })
         console.log('Cultural-fit \n', res.payload);

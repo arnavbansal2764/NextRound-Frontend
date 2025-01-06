@@ -57,6 +57,7 @@ export type MessagesToAI =
       type: typeof GET_CULTURAL_FIT;
       data: {
         audio_url: string;
+        question:string;
       };
     }|{
       type: typeof GET_CHECKPOINTS;

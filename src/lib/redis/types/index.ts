@@ -24,15 +24,24 @@ export type Analysis_Result = {
   transcript: string;
   feedback: string;
 }
-
-export type  Emotion ={
-  name: string;
-  value: number;
+export interface Emotion {
+  emotion_name: string;
+  emotion_score: number;
 }
 
-export type CulturalAnalysisResult ={
-  emotions: Emotion[][];
-  result: string;
+export interface Trait {
+  trait: string;
+  score: number;
+}
+
+export interface Segment {
+  segment: number | string;
+  emotions: Emotion[];
+}
+
+export interface SegmentSecondaryTrait {
+  segment: number;
+  traits: Trait[];
 }
 
 export type Course = {
