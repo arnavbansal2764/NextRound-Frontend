@@ -1,16 +1,44 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { BriefcaseIcon, Menu, X } from "lucide-react"
+import { BriefcaseIcon, Menu, X, ChevronDown } from 'lucide-react'
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
+const AnimatedButton = ({ children, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: React.ReactNode }) => {
+  return (
+    <motion.button
+      className={`relative inline-flex items-center justify-center px-6 py-3 overflow-hidden font-bold text-white rounded-full group ${className}`}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      {...props}
+    >
+      <span className="absolute inset-0 w-full h-full transition duration-300 ease-out opacity-0 bg-gradient-to-br from-pink-600 via-purple-700 to-blue-400 group-hover:opacity-100"></span>
+      <span className="absolute top-0 left-0 w-full bg-gradient-to-b from-white to-transparent opacity-5 h-1/3"></span>
+      <span className="absolute bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-white to-transparent opacity-5"></span>
+      <span className="absolute bottom-0 left-0 w-4 h-full bg-gradient-to-r from-white to-transparent opacity-5"></span>
+      <span className="absolute bottom-0 right-0 w-4 h-full bg-gradient-to-l from-white to-transparent opacity-5"></span>
+      <span className="absolute inset-0 w-full h-full border border-white rounded-full opacity-10"></span>
+      <span className="absolute w-0 h-0 transition-all duration-300 ease-out bg-white rounded-full group-hover:w-56 group-hover:h-56 opacity-5"></span>
+      <span className="relative">{children}</span>
+    </motion.button>
+  )
+}
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  
+
   const router = useRouter()
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10)
@@ -21,26 +49,38 @@ export default function Header() {
 
   const navItems = [
     { name: 'Interview', href: '/interview' },
-    { name: 'Cultural Fit', href: '/cultural-fit' }
+    { name: 'Cultural Fit', href: '/cultural-fit' },
+    {
+      name: 'Resources',
+      items: [
+        { name: 'Blog', href: '/blog' },
+        { name: 'FAQ', href: '/faq' },
+        { name: 'Support', href: '/support' },
+      ]
+    }
   ]
 
   return (
     <motion.header
-      className={`group fixed top-0 left-0 right-0 z-50 px-4 lg:px-6 py-4 transition-all duration-300 ${isScrolled ? "bg-white shadow-md text-white" : "bg-transparent text-transparent hover:bg-white group-hover:text-gray-700"
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled
+          ? "bg-white/80 backdrop-blur-md shadow-lg"
+          : "bg-transparent"
         }`}
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
-      <div className="container mx-auto flex items-center justify-between">
+      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <motion.div
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => router.push("/")}
-          className=" flex items-center gap-2 text-lg font-semibold cursor-pointer"
+          className="flex items-center gap-2 text-xl font-bold cursor-pointer"
         >
-          <BriefcaseIcon className={isScrolled ? "text-primary" : "text-white group-hover:text-primary"} />
-          <span className={isScrolled ? "text-primary" : "text-white group-hover:text-primary"}>NextRound</span>
+          <BriefcaseIcon className="text-primary h-6 w-6" />
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600">
+            NextRound
+          </span>
         </motion.div>
 
         <nav className="hidden lg:flex items-center gap-6">
@@ -51,28 +91,48 @@ export default function Header() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Link
-                href={item.href}
-                className={`font-medium hover:text-primary transition-colors ${isScrolled ? "text-gray-700" : "text-white group-hover:text-gray-700"
-                  }`}
-              >
-                {item.name}
-              </Link>
+              {item.items ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-1">
+                      {item.name} <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {item.items.map((subItem) => (
+                      <DropdownMenuItem key={subItem.name}>
+                        <Link href={subItem.href} className="w-full">
+                          {subItem.name}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Link
+                  href={item.href}
+                  className="relative font-medium text-gray-700 hover:text-primary transition-colors duration-300 group"
+                >
+                  {item.name}
+                  <span className="absolute left-0 bottom-0 w-full h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                </Link>
+              )}
             </motion.div>
           ))}
         </nav>
 
         <div className="flex items-center gap-4">
+        
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            className="lg:hidden"
+            className="lg:hidden text-primary"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? (
-              <X className={isScrolled ? "text-primary" : "text-white group-hover:text-primary"} />
+              <X className="h-6 w-6" />
             ) : (
-              <Menu className={isScrolled ? "text-primary" : "text-white group-hover:text-primary"} />
+              <Menu className="h-6 w-6" />
             )}
           </motion.button>
         </div>
@@ -84,30 +144,50 @@ export default function Header() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="lg:hidden mt-4"
+            className="lg:hidden bg-white/80 backdrop-blur-md"
           >
-            {navItems.map((item) => (
-              <motion.div
-                key={item.name}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="py-2"
-              >
-
-                <Link
-                  href={item.href}
-                  className="font-medium text-gray-700 hover:text-primary transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
+            <div className="container mx-auto px-4 py-4 space-y-4">
+              {navItems.map((item) => (
+                <motion.div
+                  key={item.name}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
                 >
-                  {item.name}
-                </Link>
-
-              </motion.div>
-            ))}
+                  {item.items ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="w-full justify-start">
+                          {item.name} <ChevronDown className="h-4 w-4 ml-2" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        {item.items.map((subItem) => (
+                          <DropdownMenuItem key={subItem.name}>
+                            <Link href={subItem.href} className="w-full">
+                              {subItem.name}
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className="block py-2 font-medium text-gray-700 hover:text-primary transition-colors duration-300"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {item.name}
+                    </Link>
+                  )}
+                </motion.div>
+              ))}
+              
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
     </motion.header>
   )
 }
+

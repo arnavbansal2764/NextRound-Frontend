@@ -1,26 +1,28 @@
-"use client";
+"use client"
 
-import React, { useState, useRef } from "react";
-import { generateReactHelpers } from "@uploadthing/react";
-import type { OurFileRouter } from "@/app/api/core";
+import React, { useState, useRef, useEffect } from "react"
+import { generateReactHelpers } from "@uploadthing/react"
+import type { OurFileRouter } from "@/app/api/core"
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Card, CardContent } from "@/components/ui/card"
-import { Mic, MicOff, Send, Play } from 'lucide-react'
+import { Card } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Mic, MicOff, Video, VideoOff, MonitorUp, MessageSquare, Users, Phone, Send, Play, Loader2, VolumeX, Volume2 } from 'lucide-react'
 import Typewriter from 'react-ts-typewriter'
-import useLoading from "@/hooks/useLoading";
-import VoiceAnimation from "./voice-animation";
-import CulturalFitAnalysis  from "./cultural-fit-display";
-import { Segment, SegmentSecondaryTrait } from "@/lib/redis/types";
-const { useUploadThing } = generateReactHelpers<OurFileRouter>();
+import useLoading from "@/hooks/useLoading"
+import VoiceAnimation from "./voice-animation"
+import CulturalFitAnalysis from "./cultural-fit-display"
+import { Segment, SegmentSecondaryTrait } from "@/lib/redis/types"
+import axios from "axios"
+import { start } from "repl"
+const { useUploadThing } = generateReactHelpers<OurFileRouter>()
 
-import axios from 'axios';
 interface AnalysisResult {
-        result: string;
-        primary_traits: Segment[];
-        segment_secondary_traits: SegmentSecondaryTrait[];
-    }
+    result: string;
+    primary_traits: Segment[];
+    segment_secondary_traits: SegmentSecondaryTrait[];
+}
 const questionsPool = [
     "Introduce yourself.",
     "What motivates you to come to work every day?",
@@ -54,25 +56,199 @@ const questionsPool = [
     "Where do you see yourself in 5 years?"
 ]
 function getRandomItemFromArray(arr: string[]): string {
-  const randomIndex = Math.floor(Math.random() * arr.length);
-  return arr[randomIndex];
+    const randomIndex = Math.floor(Math.random() * arr.length);
+    return arr[randomIndex];
 }
+const example = {
+    "result": "**Overall Assessment of the Response**\n\nThe candidate's response is incomplete, indicating a failure to address the prompt effectively. The response appears to be a random collection of text snippets without any clear connection to the question of cultural fit. This lack of focus and disjointedness raises concerns about the candidate's ability to engage thoughtfully with a prompt.\n\n**Analysis of Emotional Patterns**\n\nThe emotional patterns in the candidate's response are puzzling. In Segment 0, the text \"projects and typescript\" is accompanied by a mix of emotions, including interest, satisfaction, and calmness. However, this emotional reaction seems unrelated to the question of cultural fit. In Segment 1, the text \"hello I love WhatsApp\" is accompanied by emotions of interest, calmness, and joy. Again, this emotional response appears disconnected from the question at hand.\n\n**Evaluation of Communication Style**\n\nThe candidate's communication style is unclear and chaotic. The response meanders through disjointed text snippets, lacks coherence, and fails to provide a clear answer to the question. This chaotic communication style suggests that the candidate may struggle to articulate their thoughts and engage with a prompt in a clear and effective manner.\n\n**Suggestions for Improvement**\n\nTo improve their response, the candidate should:\n\n1. Focus on the question and provide a clear and concise answer.\n2. Choose relevant text snippets that directly address the prompt.\n3. Develop a more coherent and organized communication style.\n4. Provide evidence of their thinking and analysis in response to the question.\n\n**Cultural Fit Score (1-5)**\n\nBased on the analysis, I would give the candidate a cultural fit score of 2 out of 5. The candidate's chaotic communication style, lack of focus, and failure to engage thoughtfully with the prompt suggest that they may struggle to fit into a cultural environment that values clear and effective communication.\n\nTo improve their cultural fit, the candidate should:\n\n1. Develop a clearer and more organized communication style.\n2. Focus on the question and provide a clear and concise answer.\n3. Engage more thoughtfully with prompts and provide evidence of their thinking and analysis.\n4. Show a better understanding of the cultural values and norms that are relevant to the organization or team.",
+    "primary_traits": [
+        {
+            "segment": 1,
+            "emotions": [
+                {
+                    "emotion_name": "Interest",
+                    "emotion_score": 0.3209715187549591
+                },
+                {
+                    "emotion_name": "Satisfaction",
+                    "emotion_score": 0.2949056327342987
+                },
+                {
+                    "emotion_name": "Calmness",
+                    "emotion_score": 0.28099432587623596
+                }
+            ]
+        },
+        {
+            "segment": 2,
+            "emotions": [
+                {
+                    "emotion_name": "Interest",
+                    "emotion_score": 0.3586927354335785
+                },
+                {
+                    "emotion_name": "Calmness",
+                    "emotion_score": 0.28279438614845276
+                },
+                {
+                    "emotion_name": "Joy",
+                    "emotion_score": 0.14740656316280365
+                }
+            ]
+        },
+        {
+            "segment": "final",
+            "emotions": [
+                {
+                    "emotion_name": "Creative Thinking",
+                    "emotion_score": 0.153
+                },
+                {
+                    "emotion_name": "Adaptability",
+                    "emotion_score": 0.149
+                },
+                {
+                    "emotion_name": "Problem Solving",
+                    "emotion_score": 0.128
+                },
+                {
+                    "emotion_name": "Empathy",
+                    "emotion_score": 0.115
+                },
+                {
+                    "emotion_name": "Emotional Resilience",
+                    "emotion_score": 0.085
+                }
+            ]
+        }
+    ],
+    "segment_secondary_traits": [
+        {
+            "segment": 1,
+            "traits": [
+                {
+                    "trait": "Creative Thinking",
+                    "score": 0.151
+                },
+                {
+                    "trait": "Adaptability",
+                    "score": 0.148
+                },
+                {
+                    "trait": "Problem Solving",
+                    "score": 0.124
+                },
+                {
+                    "trait": "Empathy",
+                    "score": 0.115
+                },
+                {
+                    "trait": "Emotional Resilience",
+                    "score": 0.084
+                }
+            ]
+        },
+        {
+            "segment": 2,
+            "traits": [
+                {
+                    "trait": "Creative Thinking",
+                    "score": 0.163
+                },
+                {
+                    "trait": "Adaptability",
+                    "score": 0.157
+                },
+                {
+                    "trait": "Problem Solving",
+                    "score": 0.132
+                },
+                {
+                    "trait": "Empathy",
+                    "score": 0.115
+                },
+                {
+                    "trait": "Emotional Resilience",
+                    "score": 0.085
+                }
+            ]
+        }
+    ]
+}
+
 const CulturalFitClient = () => {
-    const [isRecording, setIsRecording] = useState(false);
-    const [audioFile, setAudioFile] = useState<File | null>(null);
-    const [audioUrl, setAudioUrl] = useState<string | null>(null);
-    const audioRef = useRef<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<Blob[]>([]);
-    const { startUpload } = useUploadThing("audioUploader");
+    const [isRecording, setIsRecording] = useState(false)
+    const [audioFile, setAudioFile] = useState<File | null>(null)
+    const [audioUrl, setAudioUrl] = useState<string | null>(null)
+    const [isVideoOn, setIsVideoOn] = useState(true)
+    const [isMicOn, setIsMicOn] = useState(true)
+    const audioRef = useRef<MediaRecorder | null>(null)
+    const audioChunksRef = useRef<Blob[]>([])
+    const { startUpload } = useUploadThing("audioUploader")
     const [isInterviewStarted, setIsInterviewStarted] = useState(false)
     const [progress, setProgress] = useState(0)
-    const loading = useLoading();
-    const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const loading = useLoading()
+    const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
+    const [error, setError] = useState<string | null>(null)
     const [question, setQuestion] = useState<string>('');
-    const startRecording = () => {
+    const [currentTime, setCurrentTime] = useState(new Date())
+    const [stream, setStream] = useState<MediaStream | null>(null)
+    const videoRef = useRef<HTMLVideoElement>(null)
+    const [isSpeakerOn, setIsSpeakerOn] = useState(true)
+    const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
+    useEffect(() => {
         const randomQuestion = getRandomItemFromArray(questionsPool);
         setQuestion(randomQuestion);
+        startVideo();
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+        speechSynthesisRef.current = window.speechSynthesis
+        return () => {
+            clearInterval(timer)
+            if (speechSynthesisRef.current) {
+                speechSynthesisRef.current.cancel()
+            }
+        }
+
+    }, [])
+    useEffect(() => {
+        return () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop())
+            }
+        }
+    }, [stream])
+    const speakQuestion = (question: string) => {
+        if (speechSynthesisRef.current && isSpeakerOn) {
+            
+            const utterance = new SpeechSynthesisUtterance(question)
+            speechSynthesisRef.current.speak(utterance)
+            
+        }
+    }
+
+    const toggleSpeaker = () => {
+        setIsSpeakerOn(!isSpeakerOn)
+        if (isSpeakerOn) {
+            speechSynthesisRef.current?.cancel()
+        } else {
+            speakQuestion(question)
+        }
+    }
+    const startVideo = async () => {
+        try {
+            const videoStream = await navigator.mediaDevices.getUserMedia({ video: true })
+            setStream(videoStream)
+            if (videoRef.current) {
+                videoRef.current.srcObject = videoStream
+            }
+        } catch (err) {
+            console.error("Error accessing camera:", err)
+            setError("Unable to access camera. Please check your permissions and try again.")
+        }
+    }
+    
+    const startRecording = () => {
+        
         setIsInterviewStarted(true)
         setAudioFile(null)
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -126,7 +302,7 @@ const CulturalFitClient = () => {
             const interval = setInterval(() => {
                 setProgress((prevProgress) => {
                     if (prevProgress < 95) {
-                        return prevProgress + 5; 
+                        return prevProgress + 5;
                     }
                     return prevProgress;
                 });
@@ -149,14 +325,15 @@ const CulturalFitClient = () => {
             setError("Failed to upload audio. Please try again.");
         }
     };
-    
+
     const analyzeAudio = async (audioUrl: string) => {
         try {
-            const response = await axios.post('/api/cultural-fit', { audioUrl,question });
+            const response = await axios.post('/api/cultural-fit', { audioUrl, question: "How do you stay organized and manage your time?" });
 
             console.log(response)
             setAnalysisResult(response.data);
             setError(null); // Clear any previous errors
+            // setAnalysisResult(example);
         } catch (error) {
             console.error('Error analyzing audio:', error);
             setError('An error occurred while analyzing the audio. Please try again.');
@@ -165,88 +342,226 @@ const CulturalFitClient = () => {
 
 
     return (
-        <div className="min-h-screen flex items-center justify-center">
-            <Card className="w-full max-w-4xl shadow-xl">
-                <CardContent className="p-6">
-                    <AnimatePresence mode="wait">
-                        {!isInterviewStarted && !loading.isOpen ? (
-                            <motion.div
-                                key="start"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                transition={{ duration: 0.3 }}
-                                className="text-center"
-                            >
-                                <h2 className="text-3xl font-bold mb-4 text-gray-800">Ready for Your Cultural Fit Analysis?</h2>
-                                <p className="mb-6 text-gray-600">Click the button below to begin. You'll be presented with a series of questions to answer.</p>
-                                <Button onClick={startRecording} className="w-full bg-blue-500 hover:bg-blue-600 text-white">
-                                    <Play className="mr-2 h-5 w-5" /> Get Started
-                                </Button>
-                            </motion.div>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 text-gray-800">
+            {/* Meeting Header */}
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="border-b border-gray-200 bg-white/80 backdrop-blur-sm p-4 sticky top-0 z-10"
+            >
+                <div className="flex items-center justify-between max-w-7xl mx-auto">
+                    <div className="flex items-center space-x-4">
+                        <h1 className="text-xl font-semibold text-gray-800">Culture Lens</h1>
+                        <span className="text-sm text-gray-500">Meeting ID: 360-tech-{Math.random().toString(36).substr(2, 6)}</span>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                        <span className="text-sm text-gray-500">{currentTime.toLocaleTimeString()}</span>
+                        <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100">
+                            <Users className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100">
+                            <MessageSquare className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            </motion.div>
+
+            {/* Main Content */}
+            <div className="max-w-7xl mx-auto p-4 space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                    {/* Interviewer Video */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5 }}
+                        className="relative aspect-video bg-white rounded-lg overflow-hidden shadow-lg"
+                    >
+                        <img
+                            src="https://th.bing.com/th/id/OIP.HEnKXN0zg0RMU9mddDwbZAHaHa?w=163&h=180&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+                            alt="Interviewer"
+                            className="w-full h-full object-cover"
+                        />
+                        <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/30 px-2 py-1 rounded-full">
+                            <Avatar className="h-8 w-8 ring-2 ring-white">
+                                <AvatarImage src="/placeholder.svg?height=32&width=32&text=AI" />
+                                <AvatarFallback>AI</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm text-white font-medium">AI Interviewer</span>
+                        </div>
+                    </motion.div>
+
+                    {/* Candidate Video */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5, delay: 0.2 }}
+                        className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden shadow-lg"
+                    >
+                        {isVideoOn ? (
+                            <video
+                                ref={videoRef}
+                                autoPlay
+                                playsInline
+                                muted
+                                className="w-full h-full object-cover"
+                            />
                         ) : (
-                            <motion.div
-                                key="interview"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                transition={{ duration: 0.3 }}
-                            >
-                                <Progress value={progress} className="w-full mb-6" />
-                                <h2 className="text-xl font-semibold mb-4 text-gray-800">
-                                    <Typewriter text={`${question}`} />
-                                </h2>
-
-                                <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-8">
-                                    <div className="flex items-center space-x-4">
-                                        <Button
-                                            onClick={isRecording ? stopRecording : startRecording}
-                                            variant={isRecording ? "destructive" : "default"}
-                                            className="flex items-center"
-                                        >
-                                            {isRecording ? <MicOff className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
-                                            {isRecording ? 'Stop' : 'Start'} Recording
-                                        </Button>
-                                        {isRecording && <div><VoiceAnimation /></div>}
-                                    </div>
-                                    {audioFile && !isRecording &&
-                                        <div className="flex space-x-2">
-                                            <Button onClick={() => { uploadAudio(audioFile) }} disabled={!audioFile} className="bg-green-500 hover:bg-green-600 text-white">
-                                                <Send className="mr-2 h-4 w-4" /> Submit
-                                            </Button>
-                                        </div>
-                                    }
-                                </div>
-
-                                {error && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.5 }}
-                                        className="mt-4 p-4 bg-red-100 text-red-700 rounded-md"
-                                    >
-                                        {error}
-                                    </motion.div>
-                                )}
-                                {analysisResult && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.5 }}
-                                        className="mt-8"
-                                    >
-                                        <h2 className="text-2xl font-bold mb-4">Analysis Results</h2>
-                                        <CulturalFitAnalysis data={analysisResult} />
-                                        
-                                    </motion.div>
-                                )}
-                            </motion.div>
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                <Avatar className="h-32 w-32 ring-4 ring-gray-300">
+                                    <AvatarImage src="/placeholder.svg?height=128&width=128&text=You" />
+                                    <AvatarFallback>YOU</AvatarFallback>
+                                </Avatar>
+                            </div>
                         )}
-                    </AnimatePresence>
-                </CardContent>
-            </Card>
-        </div>
-    );
-};
+                        <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/30 px-2 py-1 rounded-full">
+                            <Avatar className="h-8 w-8 ring-2 ring-white">
+                                <AvatarImage src="/placeholder.svg?height=32&width=32&text=You" />
+                                <AvatarFallback>YOU</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm text-white font-medium">You</span>
+                        </div>
+                    </motion.div>
+                </div>
 
-export default CulturalFitClient;
+                {/* Interview Content */}
+                <AnimatePresence mode="wait">
+                    {!isInterviewStarted && !loading.isOpen ? (
+                        <motion.div
+                            key="start"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.5 }}
+                            className="text-center max-w-2xl mx-auto"
+                        >
+                            <h2 className="text-4xl font-bold mb-4 text-gray-800 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Ready for Your Cultural Fit?</h2>
+                            <p className="mb-6 text-gray-600 text-lg">Our AI interviewer will assess your cultural fit using cutting-edge analysis.</p>
+                            <Button
+                                onClick={() => setIsInterviewStarted(true)}
+                                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg px-8 py-3 rounded-full transition-all duration-300 transform hover:scale-105"
+                            >
+                                <Play className="mr-2 h-5 w-5" /> Click to start
+                            </Button>
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="interview"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.5 }}
+                            className="space-y-6"
+                        >
+                            <Progress value={progress} className="w-full h-2 bg-gray-200"  />
+
+                            <Card className="bg-white shadow-lg border-0">
+                                <motion.div
+                                    className="p-6"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5 }}
+                                >
+                                    <h2 className="text-2xl font-semibold mb-4 text-gray-800">
+                                        <Typewriter text={question as string} onFinished={()=>speakQuestion(question as string)} />
+                                    </h2>
+
+                                    <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                                        <div className="flex items-center space-x-4">
+                                                {audioFile && (
+                                                    <div className="mt-4">
+                                                        <audio controls src={URL.createObjectURL(audioFile)} />
+                                                    </div>
+                                                )}
+                                            {isRecording && <VoiceAnimation />}
+                                        </div>
+
+                                        {audioFile && !isRecording && (
+                                            <Button
+                                                onClick={() => uploadAudio(audioFile)}
+                                                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white transition-all duration-300 transform hover:scale-105"
+                                            >
+                                                <Send className="mr-2 h-4 w-4" /> Submit Answer
+                                            </Button>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            </Card>
+
+                            {error && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600"
+                                >
+                                    {error}
+                                </motion.div>
+                            )}
+
+                            {analysisResult && <CulturalFitAnalysis data={analysisResult} />}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {/* Meeting Controls */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t border-gray-200"
+            >
+                <div className="max-w-7xl mx-auto p-4">
+                    <div className="flex items-center justify-center space-x-4">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-12 w-12 rounded-full transition-all duration-300 ${isRecording ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                            onClick={isRecording? stopRecording: startRecording }
+                        >
+                            {isRecording ?   <Mic className="mr-2 h-4 w-4" />:<MicOff className="mr-2 h-4 w-4" />}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-12 w-12 rounded-full transition-all duration-300 ${isVideoOn ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                            onClick={() => {
+                                setIsVideoOn(!isVideoOn)
+                                if (stream) {
+                                    startVideo()
+                                }
+                            }}
+                        >
+                            {isVideoOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-12 w-12 rounded-full transition-all duration-300 ${isSpeakerOn ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                            onClick={toggleSpeaker}
+                        >
+                            {isSpeakerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-12 w-12 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all duration-300"
+                        >
+                            <MonitorUp className="h-5 w-5" />
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            size="icon"
+                            className="h-12 w-12 rounded-full bg-red-500 hover:bg-red-600 text-white transition-all duration-300"
+                        >
+                            <Phone className="h-5 w-5" />
+                        </Button>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+    )
+}
+
+export default CulturalFitClient
+
