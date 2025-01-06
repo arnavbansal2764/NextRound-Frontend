@@ -21,13 +21,13 @@ export async function GET() {
         if (!userData || !userData.resume) {
             return NextResponse.json({ error: 'No resume URL found for the user.' }, { status: 400 });
         }
-        const resume = userData.resume;
-        const res = await RedisManager.getInstance().sendAndAwait({
-            type: GET_QUESTIONS,
-            data: {
-                resume: resume,
-            },
-        })
+        const resume_pdf = userData.resume;
+        const socket = new WebSocket('ws://localhost:8765');
+        socket.onopen = () => {
+            socket.send(JSON.stringify({ resume_pdf }));
+        };
+        //now send the command to start interview to websocket then recieve the questions
+        
         console.log('Questions \n', res.payload);
         return NextResponse.json({ questions: res.payload });
     } catch (error) {

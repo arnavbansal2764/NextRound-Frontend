@@ -1,18 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
 import { BriefcaseIcon, Menu, X } from "lucide-react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
-import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import useCreateProfile from "@/hooks/useCreateProfile"
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const createProfile = useCreateProfile()
+  
   const router = useRouter()
   useEffect(() => {
     const handleScroll = () => {
@@ -43,7 +40,7 @@ export default function Header() {
           className=" flex items-center gap-2 text-lg font-semibold cursor-pointer"
         >
           <BriefcaseIcon className={isScrolled ? "text-primary" : "text-white group-hover:text-primary"} />
-          <span className={isScrolled ? "text-primary" : "text-white group-hover:text-primary"}>CareerBridge</span>
+          <span className={isScrolled ? "text-primary" : "text-white group-hover:text-primary"}>NextRound</span>
         </motion.div>
 
         <nav className="hidden lg:flex items-center gap-6">
@@ -66,32 +63,6 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <SignedOut>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <SignInButton>
-                <Button variant={isScrolled ? "default" : "secondary"}>Sign In</Button>
-              </SignInButton>
-            </motion.div>
-          </SignedOut>
-          <SignedIn>
-            <UserButton
-              appearance={{
-                elements: {
-                  avatarBox: "w-10 h-10",
-                },
-              }}
-            />
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                variant={isScrolled ? "default" : "secondary"}
-                onClick={() => createProfile.onOpen()}
-                className={`${isScrolled ? " text-white" : "bg-transparent text-transparent group-hover:text-white group-hover:bg-blue-600"}`}
-              >
-                Resume Upload
-              </Button>
-            </motion.div>
-          </SignedIn>
-
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}

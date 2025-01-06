@@ -4,8 +4,8 @@ import { FieldErrors, UseFormRegister } from "react-hook-form";
 import { BiDollar } from "react-icons/bi";
 
 interface FormData {
-    fullName: string;
     resume: string;
+    level: string;
 }
 
 interface InputProps {

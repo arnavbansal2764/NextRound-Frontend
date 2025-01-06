@@ -12,7 +12,7 @@ import FeedbackComponent from './feedback-component'
 import QuestionReader from './screen-reader'
 import VoiceAnimation from '../cultural-fit/voice-animation'
 import useLoading from '@/hooks/useLoading'
-import LevelSelectionModal from './level-selection'
+import useCreateProfile from '@/hooks/useCreateProfile'
 
 interface AnalysisResult {
     question: string
@@ -39,7 +39,7 @@ export default function InterviewClient() {
     const analyserRef = useRef<AnalyserNode | null>(null)
     const animationFrameRef = useRef<number | null>(null)
     const loading = useLoading();
-
+    const createProfile = useCreateProfile();
     useEffect(() => {
         if (isInterviewStarted && interviewLevel !== null) {
             fetchQuestions()
@@ -78,7 +78,8 @@ export default function InterviewClient() {
     };
 
     const startInterview = () => {
-        setShowLevelModal(true)
+        createProfile.onOpen();
+        // setShowLevelModal(true)
     }
 
     const handleLevelSelection = (level: number) => {
@@ -291,11 +292,6 @@ export default function InterviewClient() {
                     </AnimatePresence>
                 </CardContent>
             </Card>
-            <AnimatePresence>
-                {showLevelModal && (
-                    <LevelSelectionModal onSelect={handleLevelSelection} />
-                )}
-            </AnimatePresence>
         </div>
     )
 }
