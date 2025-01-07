@@ -65,6 +65,7 @@ export default function InterviewClient() {
     const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([])
     const [selectedFeedbackItem, setSelectedFeedbackItem] = useState<string | null>(null)
     const [feedback, setFeedback] = useState<string>("")
+    const [questionNumber, setQuestionNumber] = useState(1)
     useEffect(() => {
         const initStream = async () => {
             try {
@@ -87,29 +88,7 @@ export default function InterviewClient() {
             }
         }
     }, [])
-    const submitAnswer = useCallback(async () => {
-        if (!client) {
-            console.error('Interview client not initialized')
-            return
-        }
-
-        try {
-            await client.addQuestionAnswer(currentQuestion, transcript)
-            setResponses(prevResponses => [...prevResponses, { question: currentQuestion, transcript }])
-            setProgress((prevProgress) => prevProgress + (100 / totalQuestions))
-
-            if (progress < 100) {
-                const { question } = await client.getQuestion()
-                setCurrentQuestion(question)
-                setTranscript("")
-            } else {
-                await endInterview()
-            }
-        } catch (error) {
-            console.error('Error submitting answer:', error)
-            toast.error('Failed to submit answer. Please try again.')
-        }
-    }, [client, currentQuestion, transcript, progress, totalQuestions])
+    
 
     const endInterview = async () => {
         if (!client) {
@@ -123,7 +102,6 @@ export default function InterviewClient() {
         setTranscript("")
         try {
             const analysisResult = await client.analyze()
-            console.log(analysisResult)
             setFeedback(analysisResult)
             await client.stopInterview()
             client.close()
@@ -135,6 +113,7 @@ export default function InterviewClient() {
             loading.onClose()
         }
     }
+
 
     const toggleFeedbackItem = (question: string) => {
         setSelectedFeedbackItem(prevSelected => prevSelected === question ? null : question)
@@ -355,7 +334,59 @@ export default function InterviewClient() {
             </div>
         )
     }
+    const toggleRecording = useCallback(() => {
+        if (isRecording) {
+            stopSpeechRecognition()
+        } else {
+            startSpeechRecognition()
+        }
+        setIsRecording(!isRecording)
+    }, [isRecording])
+    const submitAnswer = useCallback(async () => {
+        if (!client) {
+            console.error('Interview client not initialized')
+            return
+        }
 
+        try {
+            await client.addQuestionAnswer(currentQuestion, transcript)
+            setProgress((prevProgress) => prevProgress + (100 / totalQuestions))
+            setQuestionNumber(prevNumber => prevNumber + 1)
+
+            if (questionNumber < totalQuestions) {
+                const { question } = await client.getQuestion()
+                setCurrentQuestion(question)
+                setTranscript("")
+            } else {
+                await endInterview()
+            }
+        } catch (error) {
+            console.error('Error submitting answer:', error)
+            toast.error('Failed to submit answer. Please try again.')
+        }
+    }, [client, currentQuestion, transcript, questionNumber, totalQuestions])
+    const skipQuestion = useCallback(async () => {
+        if (!client) {
+            console.error('Interview client not initialized')
+            return
+        }
+
+        try {
+            setProgress((prevProgress) => prevProgress + (100 / totalQuestions))
+            setQuestionNumber(prevNumber => prevNumber + 1)
+
+            if (questionNumber < totalQuestions) {
+                const { question } = await client.getQuestion()
+                setCurrentQuestion(question)
+                setTranscript("")
+            } else {
+                await endInterview()
+            }
+        } catch (error) {
+            console.error('Error skipping question:', error)
+            toast.error('Failed to skip question. Please try again.')
+        }
+    }, [client, questionNumber, totalQuestions])
     return (
         <InterviewLayout
             isVideoOn={isVideoOn}
@@ -372,12 +403,12 @@ export default function InterviewClient() {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.5 }}
-                    className="relative aspect-video bg-white rounded-lg overflow-hidden shadow-lg"
+                    className="relative aspect-video bg-white rounded-lg overflow-hidden shadow-lg flex justify-center"
                 >
                     <img
-                        src="https://th.bing.com/th/id/OIP.HEnKXN0zg0RMU9mddDwbZAHaHa?w=163&h=180&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+                        src="https://www.shutterstock.com/image-vector/default-avatar-profile-icon-vector-600nw-1745180411.jpg"
                         alt="Interviewer"
-                        className="w-full h-full object-cover"
+                        className="w-fit h-full object-cover"
                     />
                     <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/30 px-2 py-1 rounded-full">
                         <Avatar className="h-8 w-8 ring-2 ring-white">
