@@ -70,6 +70,7 @@ export default function InterviewClient() {
     const [feedback, setFeedback] = useState<string>("")
     const [questionNumber, setQuestionNumber] = useState(1)
     const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
+    const [questionRead, setQuestionRead] = useState(false);
     useEffect(() => {
         const initStream = async () => {
             try {
@@ -172,11 +173,12 @@ export default function InterviewClient() {
         }
     }
     const speakQuestion = (question: string) => {
-        if (speechSynthesisRef.current && isSpeakerOn) {
+        if (speechSynthesisRef.current && isSpeakerOn && !questionRead) {
             const utterance = new SpeechSynthesisUtterance(question);
-            utterance.rate = 0.9;
+            utterance.rate = 1;
             utterance.onerror = (e) => console.error("Speech error:", e.error);
             speechSynthesisRef.current.speak(utterance);
+            setQuestionRead(true)
         }
     }
     const toggleSpeaker = () => {
