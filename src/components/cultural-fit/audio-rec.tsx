@@ -196,6 +196,7 @@ const CulturalFitClient = () => {
     const videoRef = useRef<HTMLVideoElement>(null)
     const [isSpeakerOn, setIsSpeakerOn] = useState(true)
     const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
+    const [questionRead, setQuestionRead] = useState(false);
     useEffect(() => {
         const randomQuestion = getRandomItemFromArray(questionsPool);
         setQuestion(randomQuestion);
@@ -210,19 +211,12 @@ const CulturalFitClient = () => {
         }
 
     }, [])
-    useEffect(() => {
-        return () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop())
-            }
-        }
-    }, [stream])
+    
     const speakQuestion = (question: string) => {
-        if (speechSynthesisRef.current && isSpeakerOn) {
-            
-            const utterance = new SpeechSynthesisUtterance(question)
-            speechSynthesisRef.current.speak(utterance)
-            
+        if (!questionRead && question && speechSynthesisRef.current && isSpeakerOn) {
+            const utterance = new SpeechSynthesisUtterance(question);
+            speechSynthesisRef.current.speak(utterance);
+            setQuestionRead(true);
         }
     }
 
@@ -328,22 +322,23 @@ const CulturalFitClient = () => {
 
     const analyzeAudio = async (audioUrl: string) => {
         try {
-            const response = await axios.post('/api/cultural-fit', { audioUrl, question: "How do you stay organized and manage your time?" });
+            const response = await axios.post('/api/cultural-fit', { audioUrl, question });
 
             console.log(response)
             setAnalysisResult(response.data);
-            setError(null); // Clear any previous errors
-            // setAnalysisResult(example);
+            setError(null); 
+           
         } catch (error) {
             console.error('Error analyzing audio:', error);
-            setError('An error occurred while analyzing the audio. Please try again.');
+            setAnalysisResult(example);
+            setError("Error analyzing audio. Please try again.");
         }
     };
 
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 text-gray-800">
-            {/* Meeting Header */}
+            
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
