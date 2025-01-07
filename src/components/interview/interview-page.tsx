@@ -1,27 +1,22 @@
-'use client'
+"use client"
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Card, CardContent } from "@/components/ui/card"
-import { Mic, MicOff, SkipForward, Send, Play } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Mic, MicOff, Send, Play, GraduationCap, Briefcase, Trophy, ChevronUp, ChevronDown } from 'lucide-react'
 import Typewriter from 'react-ts-typewriter'
 import FeedbackComponent from './feedback-component'
 import QuestionReader from './screen-reader'
 import VoiceAnimation from '../cultural-fit/voice-animation'
 import useLoading from '@/hooks/useLoading'
-import { GraduationCap, Briefcase, Trophy } from 'lucide-react'
 import Modal from '../modals/modal'
 import { UploadDropzone } from "@/lib/uploadThing/uploadThing"
 import toast from "react-hot-toast"
 import { InterviewSocketClient } from '../../lib/interviewsocket/interviewsocket'
-
-interface AnalysisResult {
-    question: string
-    transcript: string
-    feedback: string
-}
+import { InterviewLayout } from './interview-layout'
 
 enum STEPS {
     RESUME = 0,
@@ -34,33 +29,205 @@ const levels = [
     { text: 'Intermediate', icon: Briefcase },
     { text: 'Senior Positions', icon: Trophy },
 ]
-
+interface FeedbackItem {
+    question: string
+    transcript: string
+    feedback: string
+}
 export default function InterviewClient() {
+    const [isVideoOn, setIsVideoOn] = useState(true)
+    const [isMicOn, setIsMicOn] = useState(true)
+    const [isSpeakerOn, setIsSpeakerOn] = useState(true)
     const [isInterviewStarted, setIsInterviewStarted] = useState(false)
-    const [currentQuestion, setCurrentQuestion] = useState("")
     const [isRecording, setIsRecording] = useState(false)
-    const [transcription, setTranscription] = useState("")
+    const [audioFile, setAudioFile] = useState<File | null>(null)
     const [progress, setProgress] = useState(0)
-    const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([])
-    const [questions, setQuestions] = useState<string[]>([])
-    const [responses, setResponses] = useState<{ question: string; transcript: string }[]>([])
-    const [soundIntensity, setSoundIntensity] = useState(0)
-    const [totalQuestions, setTotalQuestions] = useState(5)
-    const answeredQuestions = useRef(0)
-    const recognitionRef = useRef<SpeechRecognition | null>(null)
-    const audioContextRef = useRef<AudioContext | null>(null)
-    const analyserRef = useRef<AnalyserNode | null>(null)
-    const animationFrameRef = useRef<number | null>(null)
-    const loading = useLoading()
+    const [currentQuestion, setCurrentQuestion] = useState("")
+    const [transcription, setTranscription] = useState("")
+    const [analysisResults, setAnalysisResults] = useState([])
     const [modalOpen, setModalOpen] = useState(false)
     const [step, setStep] = useState(STEPS.RESUME)
-    const [isLoading, setIsLoading] = useState(false)
     const [resume, setResume] = useState("")
-    const uploadToastId = useRef<string | number | undefined>(undefined)
-    const [fileName, setFileName] = useState<string>("")
     const [level, setLevel] = useState("")
+    const [totalQuestions, setTotalQuestions] = useState(5)
+    const [error, setError] = useState("")
+    const videoRef = useRef<HTMLVideoElement>(null)
+    const [stream, setStream] = useState<MediaStream | null>(null)
+    const audioRef = useRef<MediaRecorder | null>(null)
+    const audioChunksRef = useRef<Blob[]>([])
+    const loading = useLoading()
     const [client, setClient] = useState<InterviewSocketClient | null>(null)
+    const [responses, setResponses] = useState<{ question: string; transcript: string }[]>([])
+    const answeredQuestions = useRef(0)
+    const [questions, setQuestions] = useState<string[]>([])
+    const [transcript, setTranscript] = useState("")
+    const recognitionRef = useRef<SpeechRecognition | null>(null)
+    const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([])
+    const [selectedFeedbackItem, setSelectedFeedbackItem] = useState<string | null>(null)
+    const [feedback, setFeedback] = useState<string>("")
+    useEffect(() => {
+        const initStream = async () => {
+            try {
+                const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                setStream(mediaStream)
+                if (videoRef.current) {
+                    videoRef.current.srcObject = mediaStream
+                }
+            } catch (err) {
+                console.error("Error accessing media devices:", err)
+                setError("Unable to access camera or microphone. Please check your permissions and try again.")
+            }
+        }
 
+        initStream()
+
+        return () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop())
+            }
+        }
+    }, [])
+    const submitAnswer = useCallback(async () => {
+        if (!client) {
+            console.error('Interview client not initialized')
+            return
+        }
+
+        try {
+            await client.addQuestionAnswer(currentQuestion, transcript)
+            setResponses(prevResponses => [...prevResponses, { question: currentQuestion, transcript }])
+            setProgress((prevProgress) => prevProgress + (100 / totalQuestions))
+
+            if (progress < 100) {
+                const { question } = await client.getQuestion()
+                setCurrentQuestion(question)
+                setTranscript("")
+            } else {
+                await endInterview()
+            }
+        } catch (error) {
+            console.error('Error submitting answer:', error)
+            toast.error('Failed to submit answer. Please try again.')
+        }
+    }, [client, currentQuestion, transcript, progress, totalQuestions])
+
+    const endInterview = async () => {
+        if (!client) {
+            console.error('Interview client not initialized')
+            return
+        }
+
+        loading.onOpen()
+        setIsInterviewStarted(false)
+        setCurrentQuestion("")
+        setTranscript("")
+        try {
+            const analysisResult = await client.analyze()
+            console.log(analysisResult)
+            setFeedback(analysisResult)
+            await client.stopInterview()
+            client.close()
+            setClient(null)
+        } catch (error) {
+            console.error('Error ending interview:', error)
+            toast.error('Failed to end interview. Please try again.')
+        } finally {
+            loading.onClose()
+        }
+    }
+
+    const toggleFeedbackItem = (question: string) => {
+        setSelectedFeedbackItem(prevSelected => prevSelected === question ? null : question)
+    }
+
+    const formatFeedback = (text: string) => {
+        return text.split('\n').map((line, index) => {
+            const cleanedLine = line.replace(/\*/g, '').trim();
+
+            if (cleanedLine.startsWith('•')) {
+                return <li key={index} className="ml-4">{cleanedLine.substring(1).trim()}</li>;
+            } else if (cleanedLine.includes(':')) {
+                const [title, ...content] = cleanedLine.split(':');
+                if (content.length) {
+                    return (
+                        <div key={index} className="font-semibold mt-2">
+                            {title.trim()}:
+                            <span className="font-normal ml-1">{content.join(':').trim()}</span>
+                        </div>
+                    );
+                }
+            }
+            return <p key={index} className="mt-1">{cleanedLine}</p>;
+        });
+    };
+
+    
+    const toggleVideo = () => {
+        setIsVideoOn(!isVideoOn)
+        if (stream) {
+            stream.getVideoTracks().forEach(track => track.enabled = !isVideoOn)
+        }
+    }
+
+    const toggleMic = () => {
+        setIsMicOn(!isMicOn)
+        if (stream) {
+            stream.getAudioTracks().forEach(track => track.enabled = !isMicOn)
+        }
+    }
+
+    const toggleSpeaker = () => {
+        setIsSpeakerOn(!isSpeakerOn)
+    }
+
+    const endCall = () => {
+        // Implement end call functionality
+        console.log("Call ended")
+    }
+
+    const startRecording = () => {
+        setIsRecording(true)
+        startSpeechRecognition()
+    }
+
+    const stopRecording = () => {
+        setIsRecording(false)
+        stopSpeechRecognition()
+    }
+    const startSpeechRecognition = useCallback(() => {
+        if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+            setError("Speech recognition is not supported in this browser.")
+            return
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+        const recognition = new SpeechRecognition()
+
+        recognition.continuous = true
+        recognition.interimResults = true
+        recognition.lang = 'en-US'
+
+        recognition.onresult = (event) => {
+            const transcript = Array.from(event.results)
+                .map(result => result[0].transcript)
+                .join('')
+            setTranscript(transcript)
+        }
+
+        recognition.onerror = (event) => {
+            console.error("Speech recognition error:", event.error)
+            setError("Error in speech recognition. Please try again.")
+        }
+
+        recognitionRef.current = recognition
+        recognition.start()
+    }, [])
+
+    const stopSpeechRecognition = useCallback(() => {
+        if (recognitionRef.current) {
+            recognitionRef.current.stop()
+        }
+    }, [])
     const onBack = () => {
         setStep((value) => value - 1)
     }
@@ -69,12 +236,43 @@ export default function InterviewClient() {
         setStep((value) => value + 1)
     }
 
+
+
+    const actionLabel = useMemo(() => {
+        if (step === STEPS.QUESTIONS) {
+            return "Create"
+        }
+        return "Next"
+    }, [step])
+
+    const secondaryActionLabel = useMemo(() => {
+        if (step === STEPS.RESUME) {
+            return undefined
+        }
+        return "Back"
+    }, [step])
+
+    const fetchQuestions = async () => {
+        loading.onOpen()
+        try {
+            const newClient = new InterviewSocketClient('ws://localhost:8765')
+            await newClient.connect(resume, totalQuestions, level)
+            setClient(newClient)
+            const { question } = await newClient.getQuestion()
+            setCurrentQuestion(question)
+        } catch (error) {
+            console.error('Error fetching questions:', error)
+            toast.error('Failed to start the interview. Please try again.')
+        } finally {
+            loading.onClose()
+        }
+    }
+
     const onSubmit = async () => {
         if (step !== STEPS.QUESTIONS) {
             return onNext()
         }
 
-        setIsLoading(true)
 
         const sendApi = async () => {
             try {
@@ -93,275 +291,43 @@ export default function InterviewClient() {
             error: "Something went wrong!!",
         })
     }
-
-    const actionLabel = useMemo(() => {
-        if (step === STEPS.QUESTIONS) {
-            return "Create"
-        }
-        return "Next"
-    }, [step])
-
-    const secondaryActionLabel = useMemo(() => {
-        if (step === STEPS.RESUME) {
-            return undefined
-        }
-        return "Back"
-    }, [step])
-
-    useEffect(() => {
-        return () => {
-            if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current)
-            }
-            if (audioContextRef.current) {
-                audioContextRef.current.close()
-            }
-            if (client) {
-                client.close()
-            }
-        }
-    }, [])
-
-    const fetchQuestions = async () => {
-        loading.onOpen()
-        try {
-            const newClient = new InterviewSocketClient('ws://localhost:8765')
-            await newClient.connect(resume, totalQuestions, level)
-            setClient(newClient)
-            const { question } = await newClient.getQuestion()
-            setCurrentQuestion(question)
-            setQuestions([question])
-        } catch (error) {
-            console.error('Error fetching questions:', error)
-            toast.error('Failed to start the interview. Please try again.')
-        } finally {
-            loading.onClose()
-        }
-    }
-
-    const startInterview = () => {
-        setModalOpen(true)
-    }
-
-    const startRecording = () => {
-        if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-            alert("Speech recognition is not supported in this browser. Please use Google Chrome for the best experience.")
-            return
-        }
-
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-        const recognition = new SpeechRecognition()
-
-        recognition.continuous = false
-        recognition.interimResults = true
-        recognition.lang = 'en-US'
-
-        recognition.onstart = () => {
-            setIsRecording(true)
-            startAudioAnalysis()
-        }
-
-        recognition.onresult = (event) => {
-            const transcript = Array.from(event.results)
-                .map(result => result[0].transcript)
-                .join('')
-            setTranscription(transcript)
-        }
-
-        recognition.onerror = (event) => {
-            console.error("Speech recognition error:", event.error)
-        }
-
-        recognition.onend = () => {
-            setIsRecording(false)
-            stopAudioAnalysis()
-        }
-
-        recognitionRef.current = recognition
-        recognition.start()
-    }
-
-    const stopRecording = () => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop()
-        }
-    }
-
-    const startAudioAnalysis = () => {
-        if (!audioContextRef.current) {
-            audioContextRef.current = new AudioContext()
-        }
-
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(stream => {
-                const source = audioContextRef.current!.createMediaStreamSource(stream)
-                analyserRef.current = audioContextRef.current!.createAnalyser()
-                analyserRef.current.fftSize = 256
-                source.connect(analyserRef.current)
-
-                const updateIntensity = () => {
-                    const dataArray = new Uint8Array(analyserRef.current!.frequencyBinCount)
-                    analyserRef.current!.getByteFrequencyData(dataArray)
-                    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
-                    setSoundIntensity((average / 255) * 100)
-                    animationFrameRef.current = requestAnimationFrame(updateIntensity)
-                }
-
-                updateIntensity()
-            })
-            .catch(error => {
-                console.error('Error accessing microphone:', error)
-            })
-    }
-
-    const stopAudioAnalysis = () => {
-        if (animationFrameRef.current) {
-            cancelAnimationFrame(animationFrameRef.current)
-        }
-        setSoundIntensity(0)
-    }
-
-    const submitAnswer = async () => {
-        if (!client) {
-            console.error('Interview client not initialized')
-            return
-        }
-
-        try {
-            await client.addQuestionAnswer(currentQuestion, transcription)
-            setResponses(prevResponses => [
-                ...prevResponses,
-                { question: currentQuestion, transcript: transcription }
-            ])
-
-            answeredQuestions.current += 1
-            setProgress((answeredQuestions.current / totalQuestions) * 100)
-
-            if (answeredQuestions.current < totalQuestions) {
-                const { question } = await client.getQuestion()
-                setCurrentQuestion(question)
-                setQuestions(prevQuestions => [...prevQuestions, question])
-                setTranscription("")
-            } else {
-                await endInterview()
-            }
-        } catch (error) {
-            console.error('Error submitting answer:', error)
-            toast.error('Failed to submit answer. Please try again.')
-        }
-    }
-
-    const skipQuestion = async () => {
-        if (!client) {
-            console.error('Interview client not initialized')
-            return
-        }
-
-        try {
-            answeredQuestions.current += 1
-            setProgress((answeredQuestions.current / totalQuestions) * 100)
-
-            if (answeredQuestions.current < totalQuestions) {
-                const { question } = await client.getQuestion()
-                setCurrentQuestion(question)
-                setQuestions(prevQuestions => [...prevQuestions, question])
-                setTranscription("")
-            } else {
-                await endInterview()
-            }
-        } catch (error) {
-            console.error('Error skipping question:', error)
-            toast.error('Failed to skip question. Please try again.')
-        }
-    }
-
-    const endInterview = async () => {
-        if (!client) {
-            console.error('Interview client not initialized')
-            return
-        }
-
-        loading.onOpen()
-        setIsInterviewStarted(false)
-        setCurrentQuestion("")
-        setTranscription("")
-        try {
-            const analysisResult = await client.analyze()
-            setAnalysisResults(analysisResult)
-            await client.stopInterview()
-            client.close()
-            setClient(null)
-        } catch (error) {
-            console.error('Error ending interview:', error)
-            toast.error('Failed to end interview. Please try again.')
-        } finally {
-            loading.onClose()
-        }
-    }
-
     let bodyContent = (
-        <div className="flex flex-auto gap-8 justify-center">
-            <motion.div
-                initial={{ y: -50 }}
-                animate={{ y: 0 }}
-                className="bg-white p-8 rounded-lg max-w-md w-full"
-            >
-                <motion.h2
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="text-2xl font-bold mb-6 text-center text-gray-800"
-                >
-                    What level of position are you targeting?
-                </motion.h2>
-                <div className="space-y-4">
-                    {levels.map((levelItem, index) => (
-                        <motion.div
-                            key={levelItem.text}
-                            initial={{ x: -20, opacity: 0 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            transition={{ delay: 0.3 + index * 0.1 }}
-                        >
-                            <Button
-                                onClick={() => setLevel(levelItem.text)}
-                                className={`w-full py-3 text-lg text-gray-800 flex items-center justify-center ${levelItem.text === level ? 'border-2 border-red-800' : ''
-                                    }`}
-                                variant="outline"
-                            >
-                                <levelItem.icon className="mr-2 h-5 w-5" />
-                                {levelItem.text}
-                            </Button>
-                        </motion.div>
-                    ))}
-                </div>
-            </motion.div>
+        <div className="flex flex-col items-center space-y-4">
+            <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">
+                What level of position are you targeting?
+            </h2>
+            <div className="space-y-4 w-full max-w-md">
+                {levels.map((levelItem, index) => (
+                    <Button
+                        key={levelItem.text}
+                        onClick={() => setLevel(levelItem.text)}
+                        className={`w-full py-3 text-lg text-gray-800 flex items-center justify-center ${levelItem.text === level ? 'border-2 border-blue-500' : ''
+                            }`}
+                        variant="outline"
+                    >
+                        <levelItem.icon className="mr-2 h-5 w-5" />
+                        {levelItem.text}
+                    </Button>
+                ))}
+            </div>
         </div>
     )
 
     if (step === STEPS.RESUME) {
         bodyContent = (
-            <div className="p-5 rounded-lg text-black bg-gray-800">
-                <div className="flex flex-col items-center text-white border-collapse">
+            <div className="p-5 rounded-lg text-black bg-gray-50">
+                <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">
+                    Upload Your Resume
+                </h2>
+                <div className="flex flex-col items-center text-gray-600 border-collapse">
                     <UploadDropzone
-                        className="border-gray-800"
                         endpoint="resume"
-                        onClientUploadComplete={(res: any) => {
+                        onClientUploadComplete={(res) => {
                             setResume(res[0].url)
-                            setFileName(res[0].name)
-                            if (uploadToastId.current !== undefined) {
-                                toast.success("Resume uploaded successfully!", { id: uploadToastId.current as string })
-                                uploadToastId.current = undefined
-                            }
-                            console.log(res)
-                        }}
-                        onUploadBegin={() => {
-                            uploadToastId.current = toast.loading("Resume uploading...")
+                            toast.success("Resume uploaded successfully!")
                         }}
                         onUploadError={(error: Error) => {
-                            if (uploadToastId.current !== undefined) {
-                                toast.error(`Error uploading file: ${error.message}`, { id: uploadToastId.current as string })
-                                uploadToastId.current = undefined
-                            }
+                            toast.error(`Error uploading file: ${error.message}`)
                         }}
                     />
                 </div>
@@ -372,7 +338,9 @@ export default function InterviewClient() {
     if (step === STEPS.QUESTIONS) {
         bodyContent = (
             <div className="p-8 max-w-lg mx-auto bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg shadow-lg">
-                <p className="text-2xl font-semibold text-white mb-4">How many questions do you want to ask?</p>
+                <h2 className="text-2xl font-bold mb-4 text-center text-white">
+                    How many questions do you want to answer?
+                </h2>
                 <div className="relative">
                     <input
                         type="number"
@@ -383,81 +351,134 @@ export default function InterviewClient() {
                         className="block w-full p-3 rounded-md text-black bg-white placeholder-gray-500 shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                         placeholder="Enter a number between 1 and 10"
                     />
-                    
                 </div>
             </div>
-
         )
     }
 
-    if (analysisResults.length > 0) {
-        return <FeedbackComponent apiResponse={analysisResults} />
-    }
-
     return (
-        <div className="min-h-screen flex items-center justify-center">
-            <Card className="w-full max-w-2xl shadow-xl">
-                <CardContent className="p-6">
-                    <AnimatePresence mode="wait">
-                        {!isInterviewStarted && !loading.isOpen ? (
-                            <motion.div
-                                key="start"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                transition={{ duration: 0.3 }}
-                                className="text-center"
-                            >
-                                <h2 className="text-3xl font-bold mb-4 text-gray-800">Ready for Your Interview?</h2>
-                                <p className="mb-6 text-gray-600">Click the button below to begin. You'll be presented with a series of questions to answer.</p>
-                                <Button onClick={startInterview} className="w-full bg-blue-500 hover:bg-blue-600 text-white">
-                                    <Play className="mr-2 h-5 w-5" /> Start Interview
-                                </Button>
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="interview"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                transition={{ duration: 0.3 }}
-                            >
-                                <Progress value={progress} className="w-full mb-6" />
-                                <h2 className="text-xl font-semibold mb-4 text-gray-800">
-                                    <Typewriter text={currentQuestion} />
-                                    <QuestionReader question={currentQuestion} />
-                                </h2>
-                                {transcription && (
-                                    <div className="p-4 rounded-md mb-4 shadow-inner">
-                                        <p className="text-sm text-gray-700"><Typewriter text={transcription} /></p>
-                                    </div>
-                                )}
-                                <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
-                                    <div className="flex items-center space-x-4">
-                                        <Button
-                                            onClick={isRecording ? stopRecording : startRecording}
-                                            variant={isRecording ? "destructive" : "default"}
-                                            className="flex items-center"
-                                        >
-                                            {isRecording ? <MicOff className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
-                                            {isRecording ? 'Stop' : 'Start'} Recording
-                                        </Button>
-                                        {isRecording && <div><VoiceAnimation /></div>}
-                                    </div>
-                                    <div className="flex space-x-2">
-                                        <Button onClick={submitAnswer} disabled={!transcription} className="bg-green-500 hover:bg-green-600 text-white">
-                                            <Send className="mr-2 h-4 w-4" /> Submit
-                                        </Button>
-                                        <Button onClick={skipQuestion} variant="outline" className="border-gray-300">
-                                            <SkipForward className="mr-2 h-4 w-4" /> Skip
-                                        </Button>
-                                    </div>
-                                </div>
-                            </motion.div>
+        <InterviewLayout
+            isVideoOn={isVideoOn}
+            isMicOn={isMicOn}
+            isSpeakerOn={isSpeakerOn}
+            toggleVideo={toggleVideo}
+            toggleMic={toggleMic}
+            toggleSpeaker={toggleSpeaker}
+            endCall={endCall}
+        >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                {/* Interviewer Video */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="relative aspect-video bg-white rounded-lg overflow-hidden shadow-lg"
+                >
+                    <img
+                        src="https://th.bing.com/th/id/OIP.HEnKXN0zg0RMU9mddDwbZAHaHa?w=163&h=180&c=7&r=0&o=5&dpr=1.5&pid=1.7"
+                        alt="Interviewer"
+                        className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/30 px-2 py-1 rounded-full">
+                        <Avatar className="h-8 w-8 ring-2 ring-white">
+                            <AvatarImage src="/placeholder.svg?height=32&width=32&text=AI" />
+                            <AvatarFallback>AI</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm text-white font-medium">AI Interviewer</span>
+                    </div>
+                </motion.div>
+
+                {/* Candidate Video */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden shadow-lg"
+                >
+                    {isVideoOn ? (
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                            <Avatar className="h-32 w-32 ring-4 ring-gray-300">
+                                <AvatarImage src="/placeholder.svg?height=128&width=128&text=You" />
+                                <AvatarFallback>YOU</AvatarFallback>
+                            </Avatar>
+                        </div>
+                    )}
+                    <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/30 px-2 py-1 rounded-full">
+                        <Avatar className="h-8 w-8 ring-2 ring-white">
+                            <AvatarImage src="/placeholder.svg?height=32&width=32&text=You" />
+                            <AvatarFallback>YOU</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm text-white font-medium">You</span>
+                    </div>
+                </motion.div>
+            </div>
+
+            <AnimatePresence mode="wait">
+                {!isInterviewStarted && !loading.isOpen ? (
+                    <motion.div
+                        key="start"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                        className="text-center"
+                    >
+                        <h2 className="text-3xl font-bold mb-4 text-gray-800">Ready for Your Interview?</h2>
+                        <p className="mb-6 text-gray-600">Click the button below to begin. You'll be presented with a series of questions to answer.</p>
+                        <Button onClick={() => setModalOpen(true)} className="w-full bg-blue-500 hover:bg-blue-600 text-white">
+                            <Play className="mr-2 h-5 w-5" /> Start Interview
+                        </Button>
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        key="interview"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <Progress value={progress} className="w-full mb-6" />
+                        <h2 className="text-xl font-semibold mb-4 text-gray-800">
+                            <Typewriter text={currentQuestion} />
+                            <QuestionReader question={currentQuestion} />
+                        </h2>
+                        {transcript && (
+                            <div className="p-4 rounded-md mb-4 bg-gray-100 shadow-inner">
+                                <p className="text-sm text-gray-700">{transcript}</p>
+                            </div>
                         )}
-                    </AnimatePresence>
-                </CardContent>
-            </Card>
+                        <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                            <div className="flex items-center space-x-4">
+                                <Button
+                                    onClick={isRecording ? stopRecording : startRecording}
+                                    variant={isRecording ? "destructive" : "default"}
+                                    className="flex items-center"
+                                >
+                                    {isRecording ? <MicOff className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
+                                    {isRecording ? 'Stop' : 'Start'} Recording
+                                </Button>
+                                {isRecording && <VoiceAnimation />}
+                            </div>
+                            <div className="flex space-x-2">
+                                <Button onClick={submitAnswer} disabled={!transcript} className="bg-green-500 hover:bg-green-600 text-white">
+                                    <Send className="mr-2 h-4 w-4" /> Submit
+                                </Button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+                {feedback && <FeedbackComponent feedback={feedback} />}
+
+            </AnimatePresence>
+
             <Modal
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
@@ -468,7 +489,7 @@ export default function InterviewClient() {
                 title="Welcome! Create your profile"
                 body={bodyContent}
             />
-        </div>
+        </InterviewLayout>
     )
 }
 
