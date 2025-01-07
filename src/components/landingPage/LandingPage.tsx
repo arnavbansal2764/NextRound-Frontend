@@ -12,6 +12,7 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-[100dvh]">
       <main className="flex-1">
+        <section className="fixed top-0 left-0 right-0 bg-white h-[64px]"/>
         <section className="bg-gradient-to-br from-primary to-secondary text-primary-foreground py-12 md:py-24 lg:py-32">
           <div className="grid md:grid-cols-2 gap-8 items-center px-4 md:px-6 lg:px-8 py-12 md:py-16 lg:py-20">
             <div className="space-y-4">

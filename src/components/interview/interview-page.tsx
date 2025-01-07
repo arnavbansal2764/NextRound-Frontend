@@ -1,5 +1,5 @@
 "use client"
-
+import dotenv from 'dotenv';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from "@/components/ui/button"
@@ -8,12 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Mic, MicOff, Send, Play, GraduationCap, Briefcase, Trophy, ChevronUp, ChevronDown } from 'lucide-react'
 import Typewriter from 'react-ts-typewriter'
+
 import FeedbackComponent from './feedback-component'
 import QuestionReader from './screen-reader'
 import VoiceAnimation from '../cultural-fit/voice-animation'
 import useLoading from '@/hooks/useLoading'
 import Modal from '../modals/modal'
 import { UploadDropzone } from "@/lib/uploadThing/uploadThing"
+
 import toast from "react-hot-toast"
 import { InterviewSocketClient } from '../../lib/interviewsocket/interviewsocket'
 import { InterviewLayout } from './interview-layout'
@@ -35,6 +37,7 @@ interface FeedbackItem {
     feedback: string
 }
 export default function InterviewClient() {
+    const [currentTime, setCurrentTime] = useState(new Date())
     const [isVideoOn, setIsVideoOn] = useState(true)
     const [isMicOn, setIsMicOn] = useState(true)
     const [isSpeakerOn, setIsSpeakerOn] = useState(true)
@@ -66,6 +69,7 @@ export default function InterviewClient() {
     const [selectedFeedbackItem, setSelectedFeedbackItem] = useState<string | null>(null)
     const [feedback, setFeedback] = useState<string>("")
     const [questionNumber, setQuestionNumber] = useState(1)
+    const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
     useEffect(() => {
         const initStream = async () => {
             try {
@@ -74,12 +78,13 @@ export default function InterviewClient() {
                 if (videoRef.current) {
                     videoRef.current.srcObject = mediaStream
                 }
+                
             } catch (err) {
                 console.error("Error accessing media devices:", err)
                 setError("Unable to access camera or microphone. Please check your permissions and try again.")
             }
         }
-
+        
         initStream()
 
         return () => {
@@ -89,7 +94,19 @@ export default function InterviewClient() {
         }
     }, [])
     
-
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 10000)
+            speechSynthesisRef.current = window.speechSynthesis
+            return () => {
+                clearInterval(timer)
+                if (speechSynthesisRef.current) {
+                    speechSynthesisRef.current.cancel()
+                }
+            }
+    })
+    useEffect(() => {
+        speakQuestion(currentQuestion)
+    }, [currentQuestion])
     const endInterview = async () => {
         if (!client) {
             console.error('Interview client not initialized')
@@ -154,9 +171,21 @@ export default function InterviewClient() {
             stream.getAudioTracks().forEach(track => track.enabled = !isMicOn)
         }
     }
-
+    const speakQuestion = (question: string) => {
+        if (speechSynthesisRef.current && isSpeakerOn) {
+            const utterance = new SpeechSynthesisUtterance(question);
+            utterance.rate = 0.9;
+            utterance.onerror = (e) => console.error("Speech error:", e.error);
+            speechSynthesisRef.current.speak(utterance);
+        }
+    }
     const toggleSpeaker = () => {
         setIsSpeakerOn(!isSpeakerOn)
+        if (isSpeakerOn) {
+            speechSynthesisRef.current?.cancel()
+        } else {
+            speakQuestion(currentQuestion)
+        }
     }
 
     const endCall = () => {
@@ -234,7 +263,7 @@ export default function InterviewClient() {
     const fetchQuestions = async () => {
         loading.onOpen()
         try {
-            const newClient = new InterviewSocketClient('ws://localhost:8765')
+            const newClient = new InterviewSocketClient(process.env.WEBSOCKET_ID?process.env.WEBSOCKET_ID:"ws://localhost:8765")
             await newClient.connect(resume, totalQuestions, level)
             setClient(newClient)
             const { question } = await newClient.getQuestion()
@@ -248,7 +277,11 @@ export default function InterviewClient() {
     }
 
     const onSubmit = async () => {
-        if (step !== STEPS.QUESTIONS) {
+        if(!resume){
+            toast.error("Please upload your resume")
+            return
+        }
+        else if (step !== STEPS.QUESTIONS) {
             return onNext()
         }
 
@@ -298,8 +331,9 @@ export default function InterviewClient() {
                 <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">
                     Upload Your Resume
                 </h2>
-                <div className="flex flex-col items-center text-gray-600 border-collapse">
+                <div className="flex flex-col items-center text-black border-collapse">
                     <UploadDropzone
+                        className='w-full p-4 rounded-lg text-black bg-blue-500'
                         endpoint="resume"
                         onClientUploadComplete={(res) => {
                             setResume(res[0].url)
@@ -462,9 +496,9 @@ export default function InterviewClient() {
                         transition={{ duration: 0.3 }}
                         className="text-center"
                     >
-                        <h2 className="text-3xl font-bold mb-4 text-gray-800">Ready for Your Interview?</h2>
+                        <h2 className="text-4xl font-bold mb-4 text-gray-800 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Ready for Your Interview?</h2>
                         <p className="mb-6 text-gray-600">Click the button below to begin. You'll be presented with a series of questions to answer.</p>
-                        <Button onClick={() => setModalOpen(true)} className="w-full bg-blue-500 hover:bg-blue-600 text-white">
+                        <Button onClick={() => setModalOpen(true)} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg px-8 py-3 rounded-full transition-all duration-300 transform hover:scale-105">
                             <Play className="mr-2 h-5 w-5" /> Start Interview
                         </Button>
                     </motion.div>

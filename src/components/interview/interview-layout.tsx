@@ -25,17 +25,23 @@ export function InterviewLayout({
     toggleSpeaker,
     endCall
 }: InterviewLayoutProps) {
+    const [time, setTime] = React.useState<string>(new Date().toLocaleTimeString());
+
+    React.useEffect(() => {
+        const interval = setInterval(() => {
+            setTime(new Date().toLocaleTimeString());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 text-gray-800">
             {/* Meeting Header */}
-            <div className="border-b border-gray-200 bg-white/80 backdrop-blur-sm p-4 sticky top-0 z-10">
-                <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <div className="border-b border-gray-200 bg-white/80 backdrop-blur-sm p-4 sticky top-0 z-10 mt-5 mb-5">
+                <div className="flex items-center justify-end max-w-7xl mx-auto">
+                   
                     <div className="flex items-center space-x-4">
-                        <h1 className="text-xl font-semibold text-gray-800">Interview Lens</h1>
-                        <span className="text-sm text-gray-500">Meeting ID: 360-tech-{Math.random().toString(36).substr(2, 6)}</span>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                        <span className="text-sm text-gray-500">{new Date().toLocaleTimeString()}</span>
+                        <span className="text-sm text-gray-500">{time}</span>
                         <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100">
                             <Users className="h-4 w-4" />
                         </Button>
