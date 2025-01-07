@@ -459,11 +459,11 @@ const CulturalFitClient = () => {
 
                                     <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
                                         <div className="flex items-center space-x-4">
-                                                {audioFile && (
+                                                {/* {audioFile && (
                                                     <div className="mt-4">
                                                         <audio controls src={URL.createObjectURL(audioFile)} />
                                                     </div>
-                                                )}
+                                                )} */}
                                             {isRecording && <VoiceAnimation />}
                                         </div>
 
