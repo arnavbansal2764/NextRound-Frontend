@@ -16,6 +16,7 @@ import CulturalFitAnalysis from "./cultural-fit-display"
 import { Segment, SegmentSecondaryTrait } from "@/lib/redis/types"
 import axios from "axios"
 import { start } from "repl"
+import EndCultural from "./end-cultural"
 const { useUploadThing } = generateReactHelpers<OurFileRouter>()
 
 interface AnalysisResult {
@@ -267,6 +268,7 @@ const CulturalFitClient = () => {
     const [isSpeakerOn, setIsSpeakerOn] = useState(true)
     const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
     const [questionRead, setQuestionRead] = useState(false);
+    const [endInterviewNotification, setEndInterviewNotification] = useState(false)
     useEffect(() => {
         const randomQuestion = getRandomItemFromArray(questionsPool);
         setQuestion(randomQuestion);
@@ -362,7 +364,7 @@ const CulturalFitClient = () => {
 
     const uploadAudio = async (file: File) => {
         try {
-            loading.onOpen();
+            setEndInterviewNotification(true)
             const interval = setInterval(() => {
                 setProgress((prevProgress) => {
                     if (prevProgress < 95) {
@@ -383,10 +385,12 @@ const CulturalFitClient = () => {
             }
             clearInterval(interval);
             setProgress(100);
-            loading.onClose();
+           
         } catch (error) {
             console.error("Upload failed:", error);
             setError("Failed to upload audio. Please try again.");
+        }finally{
+            setEndInterviewNotification(false)
         }
     };
 
@@ -408,7 +412,7 @@ const CulturalFitClient = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 text-gray-800">
-            
+            {endInterviewNotification && <EndCultural/>}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}

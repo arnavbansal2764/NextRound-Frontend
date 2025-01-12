@@ -3,6 +3,7 @@
 import React from 'react'
 import { Button } from "@/components/ui/button"
 import { Users, MessageSquare, Mic, MicOff, Video, VideoOff, MonitorUp, Phone, Volume2, VolumeX } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 interface InterviewLayoutProps {
     children: React.ReactNode
@@ -86,6 +87,7 @@ export function InterviewLayout({
                             {isSpeakerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
                         </Button>
                         <Button
+                        onClick={() => {toast.error('Screen sharing is not available in this demo')}}
                             variant="ghost"
                             size="icon"
                             className="h-12 w-12 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all duration-300"

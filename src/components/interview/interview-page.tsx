@@ -1,24 +1,27 @@
 "use client"
-import dotenv from 'dotenv';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Mic, MicOff, Send, Play, GraduationCap, Briefcase, Trophy, ChevronUp, ChevronDown } from 'lucide-react'
 import Typewriter from 'react-ts-typewriter'
-
 import FeedbackComponent from './feedback-component'
 import QuestionReader from './screen-reader'
 import VoiceAnimation from '../cultural-fit/voice-animation'
 import useLoading from '@/hooks/useLoading'
 import Modal from '../modals/modal'
 import { UploadDropzone } from "@/lib/uploadThing/uploadThing"
-
 import toast from "react-hot-toast"
 import { InterviewSocketClient } from '../../lib/interviewsocket/interviewsocket'
 import { InterviewLayout } from './interview-layout'
+import { getTranscript } from '@/lib/audioConvert'
+import { useAudioUpload } from '@/hooks/useAudioUpload'
+import AnalyzingResponseAnimation from './analyzing-response'
+import StartInterview from './start-interview'
+import EndInterview from './end-interview'
+const ELEVEN_LABS_VOICE_ID = process.env.NEXT_PUBLIC_ELEVEN_LABS_VOICE_ID || '';
+const ELEVEN_LABS_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY || '';
 
 enum STEPS {
     RESUME = 0,
@@ -31,23 +34,35 @@ const levels = [
     { text: 'Intermediate', icon: Briefcase },
     { text: 'Senior Positions', icon: Trophy },
 ]
-interface FeedbackItem {
-    question: string
-    transcript: string
-    feedback: string
-}
+const TypewriterEffect: React.FC<{ text: string }> = ({ text }) => {
+    const [displayedText, setDisplayedText] = useState('');
+
+    useEffect(() => {
+        let i = 0;
+        const typingInterval = setInterval(() => {
+            if (i < text.length) {
+                setDisplayedText((prev) => prev + text.charAt(i));
+                i++;
+            } else {
+                clearInterval(typingInterval);
+            }
+        }, 30);
+
+        return () => clearInterval(typingInterval);
+    }, [text]);
+
+    return <>{displayedText}</>;
+};
 export default function InterviewClient() {
+    const { uploadAudio } = useAudioUpload();
     const [currentTime, setCurrentTime] = useState(new Date())
     const [isVideoOn, setIsVideoOn] = useState(true)
     const [isMicOn, setIsMicOn] = useState(true)
     const [isSpeakerOn, setIsSpeakerOn] = useState(true)
     const [isInterviewStarted, setIsInterviewStarted] = useState(false)
     const [isRecording, setIsRecording] = useState(false)
-    const [audioFile, setAudioFile] = useState<File | null>(null)
     const [progress, setProgress] = useState(0)
     const [currentQuestion, setCurrentQuestion] = useState("")
-    const [transcription, setTranscription] = useState("")
-    const [analysisResults, setAnalysisResults] = useState([])
     const [modalOpen, setModalOpen] = useState(false)
     const [step, setStep] = useState(STEPS.RESUME)
     const [resume, setResume] = useState("")
@@ -56,21 +71,19 @@ export default function InterviewClient() {
     const [error, setError] = useState("")
     const videoRef = useRef<HTMLVideoElement>(null)
     const [stream, setStream] = useState<MediaStream | null>(null)
-    const audioRef = useRef<MediaRecorder | null>(null)
-    const audioChunksRef = useRef<Blob[]>([])
     const loading = useLoading()
     const [client, setClient] = useState<InterviewSocketClient | null>(null)
-    const [responses, setResponses] = useState<{ question: string; transcript: string }[]>([])
-    const answeredQuestions = useRef(0)
-    const [questions, setQuestions] = useState<string[]>([])
-    const [transcript, setTranscript] = useState("")
-    const recognitionRef = useRef<SpeechRecognition | null>(null)
-    const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([])
-    const [selectedFeedbackItem, setSelectedFeedbackItem] = useState<string | null>(null)
+    const [transcript, setTranscript] = useState('');
+    const recognitionRef = useRef<SpeechRecognition | MediaRecorder | null>(null);
     const [feedback, setFeedback] = useState<string>("")
     const [questionNumber, setQuestionNumber] = useState(1)
-    const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
     const [questionRead, setQuestionRead] = useState(false);
+    const [isAnalyzing,setIsAnalyzing] = useState(false)
+    const [creatingInterview, setCreatingInterview] = useState(false)
+    const [endInterviewNotification, setEndInterviewNotification] = useState(false)
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const API_KEY = 'sk_a2210098606af4f44a47ad7b98bb3cb3622e9d63571f6231';
+    const VOICE_ID = 'iWNf11sz1GrUE4ppxTOL';
     useEffect(() => {
         const initStream = async () => {
             try {
@@ -79,13 +92,12 @@ export default function InterviewClient() {
                 if (videoRef.current) {
                     videoRef.current.srcObject = mediaStream
                 }
-                
             } catch (err) {
                 console.error("Error accessing media devices:", err)
                 setError("Unable to access camera or microphone. Please check your permissions and try again.")
             }
         }
-        
+
         initStream()
 
         return () => {
@@ -94,27 +106,26 @@ export default function InterviewClient() {
             }
         }
     }, [])
-    
+
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 10000)
-            speechSynthesisRef.current = window.speechSynthesis
-            return () => {
-                clearInterval(timer)
-                if (speechSynthesisRef.current) {
-                    speechSynthesisRef.current.cancel()
-                }
-            }
-    })
+        return () => {
+            clearInterval(timer)
+        }
+    }, [])
+
     useEffect(() => {
-        speakQuestion(currentQuestion)
-    }, [currentQuestion])
+        if (currentQuestion && isSpeakerOn) {
+            speakQuestion(currentQuestion)
+        }
+    }, [currentQuestion, isSpeakerOn])
+
     const endInterview = async () => {
         if (!client) {
             console.error('Interview client not initialized')
             return
         }
-
-        loading.onOpen()
+        setEndInterviewNotification(true)
         setIsInterviewStarted(false)
         setCurrentQuestion("")
         setTranscript("")
@@ -128,37 +139,10 @@ export default function InterviewClient() {
             console.error('Error ending interview:', error)
             toast.error('Failed to end interview. Please try again.')
         } finally {
-            loading.onClose()
+            setEndInterviewNotification(false)
         }
     }
 
-
-    const toggleFeedbackItem = (question: string) => {
-        setSelectedFeedbackItem(prevSelected => prevSelected === question ? null : question)
-    }
-
-    const formatFeedback = (text: string) => {
-        return text.split('\n').map((line, index) => {
-            const cleanedLine = line.replace(/\*/g, '').trim();
-
-            if (cleanedLine.startsWith('•')) {
-                return <li key={index} className="ml-4">{cleanedLine.substring(1).trim()}</li>;
-            } else if (cleanedLine.includes(':')) {
-                const [title, ...content] = cleanedLine.split(':');
-                if (content.length) {
-                    return (
-                        <div key={index} className="font-semibold mt-2">
-                            {title.trim()}:
-                            <span className="font-normal ml-1">{content.join(':').trim()}</span>
-                        </div>
-                    );
-                }
-            }
-            return <p key={index} className="mt-1">{cleanedLine}</p>;
-        });
-    };
-
-    
     const toggleVideo = () => {
         setIsVideoOn(!isVideoOn)
         if (stream) {
@@ -172,72 +156,110 @@ export default function InterviewClient() {
             stream.getAudioTracks().forEach(track => track.enabled = !isMicOn)
         }
     }
-    const speakQuestion = (question: string) => {
-        if (speechSynthesisRef.current && isSpeakerOn && !questionRead) {
-            const utterance = new SpeechSynthesisUtterance(question);
-            utterance.rate = 1;
-            utterance.onerror = (e) => console.error("Speech error:", e.error);
-            speechSynthesisRef.current.speak(utterance);
+
+    const speakQuestion = async (question: string) => {
+        try {
             setQuestionRead(true)
+            const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_LABS_VOICE_ID}`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'audio/mpeg',
+                    'xi-api-key': ELEVEN_LABS_API_KEY,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: question,
+                    model_id: 'eleven_multilingual_v2',
+                    voice_settings: {
+                        stability: 0.3,
+                        similarity_boost: 0.90,
+                    }
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to convert text to speech');
+            }
+
+            const audioBlob = await response.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+
+            if (audioRef.current) {
+                audioRef.current.src = audioUrl;
+                await audioRef.current.play();
+            }
+
+            
+        } catch (error) {
+            console.error('Error generating speech:', error);
+            toast.error('Failed to generate speech. Please try again.');
+        }finally{
+            setQuestionRead(false)
         }
-    }
+    };
+
     const toggleSpeaker = () => {
         setIsSpeakerOn(!isSpeakerOn)
-        if (isSpeakerOn) {
-            speechSynthesisRef.current?.cancel()
-        } else {
-            speakQuestion(currentQuestion)
+        if (audioRef.current) {
+            if (isSpeakerOn) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            } else {
+                speakQuestion(currentQuestion)
+            }
         }
     }
 
     const endCall = () => {
-        // Implement end call functionality
+        endInterview()
         console.log("Call ended")
     }
 
     const startRecording = () => {
-        setIsRecording(true)
-        startSpeechRecognition()
-    }
+        setIsRecording(true);
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                const mediaRecorder = new MediaRecorder(stream);
+                const audioChunks: Blob[] = [];
+
+                mediaRecorder.addEventListener("dataavailable", event => {
+                    audioChunks.push(event.data);
+                });
+
+                mediaRecorder.addEventListener("stop", async () => {
+                    const audioBlob = new Blob(audioChunks);
+                    const audioFile = new File([audioBlob], "audio.wav", { type: "audio/wav" });
+                    setIsAnalyzing(true)
+                    try {
+                        const audioUrl = await uploadAudio(audioFile);
+
+                        if (audioUrl !== 'Error Uploading Audio') {
+                            const transcriptText = await getTranscript(audioUrl);
+                            setTranscript(transcriptText);
+                        } else {
+                            toast.error('Error uploading audio');
+                        }
+
+                    } catch (error) {
+                        console.error('Error processing audio:', error);
+                        toast.error('Error processing audio');
+                    } finally {
+                        setIsAnalyzing(false)
+                    }
+                });
+
+                mediaRecorder.start();
+                recognitionRef.current = mediaRecorder;
+            });
+    };
 
     const stopRecording = () => {
-        setIsRecording(false)
-        stopSpeechRecognition()
-    }
-    const startSpeechRecognition = useCallback(() => {
-        if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-            setError("Speech recognition is not supported in this browser.")
-            return
+        setIsRecording(false);
+        if (recognitionRef.current && recognitionRef.current instanceof MediaRecorder) {
+            recognitionRef.current.stop();
         }
+    };
 
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-        const recognition = new SpeechRecognition()
-
-        recognition.continuous = true
-        recognition.interimResults = true
-        recognition.lang = 'en-US'
-
-        recognition.onresult = (event) => {
-            const transcript = Array.from(event.results)
-                .map(result => result[0].transcript)
-                .join('')
-            setTranscript(transcript)
-        }
-
-        recognition.onerror = (event) => {
-            console.error("Speech recognition error:", event.error)
-            setError("Error in speech recognition. Please try again.")
-        }
-
-        recognitionRef.current = recognition
-        recognition.start()
-    }, [])
-
-    const stopSpeechRecognition = useCallback(() => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop()
-        }
-    }, [])
     const onBack = () => {
         setStep((value) => value - 1)
     }
@@ -245,8 +267,6 @@ export default function InterviewClient() {
     const onNext = () => {
         setStep((value) => value + 1)
     }
-
-
 
     const actionLabel = useMemo(() => {
         if (step === STEPS.QUESTIONS) {
@@ -263,9 +283,9 @@ export default function InterviewClient() {
     }, [step])
 
     const fetchQuestions = async () => {
-        loading.onOpen()
+        setCreatingInterview(true);
         try {
-            const newClient = new InterviewSocketClient(process.env.WEBSOCKET_ID?process.env.WEBSOCKET_ID:"ws://localhost:8765")
+            const newClient = new InterviewSocketClient(process.env.WEBSOCKET_ID ? process.env.WEBSOCKET_ID : "ws://localhost:8765")
             await newClient.connect(resume, totalQuestions, level)
             setClient(newClient)
             const { question } = await newClient.getQuestion()
@@ -274,19 +294,18 @@ export default function InterviewClient() {
             console.error('Error fetching questions:', error)
             toast.error('Failed to start the interview. Please try again.')
         } finally {
-            loading.onClose()
+            setCreatingInterview(false);
         }
     }
 
     const onSubmit = async () => {
-        if(!resume){
+        if (!resume) {
             toast.error("Please upload your resume")
             return
         }
         else if (step !== STEPS.QUESTIONS) {
             return onNext()
         }
-
 
         const sendApi = async () => {
             try {
@@ -297,14 +316,12 @@ export default function InterviewClient() {
                 await fetchQuestions()
             } catch (error) {
                 console.error("Error submitting data:", error)
+                toast.error("Failed to submit data. Please try again.")
             }
         }
-        toast.promise(sendApi(), {
-            loading: "Creating Profile...",
-            success: "Profile Created !!",
-            error: "Something went wrong!!",
-        })
+        sendApi()
     }
+
     let bodyContent = (
         <div className="flex flex-col items-center space-y-4">
             <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">
@@ -370,14 +387,7 @@ export default function InterviewClient() {
             </div>
         )
     }
-    const toggleRecording = useCallback(() => {
-        if (isRecording) {
-            stopSpeechRecognition()
-        } else {
-            startSpeechRecognition()
-        }
-        setIsRecording(!isRecording)
-    }, [isRecording])
+    
     const submitAnswer = useCallback(async () => {
         if (!client) {
             console.error('Interview client not initialized')
@@ -401,28 +411,8 @@ export default function InterviewClient() {
             toast.error('Failed to submit answer. Please try again.')
         }
     }, [client, currentQuestion, transcript, questionNumber, totalQuestions])
-    const skipQuestion = useCallback(async () => {
-        if (!client) {
-            console.error('Interview client not initialized')
-            return
-        }
 
-        try {
-            setProgress((prevProgress) => prevProgress + (100 / totalQuestions))
-            setQuestionNumber(prevNumber => prevNumber + 1)
-
-            if (questionNumber < totalQuestions) {
-                const { question } = await client.getQuestion()
-                setCurrentQuestion(question)
-                setTranscript("")
-            } else {
-                await endInterview()
-            }
-        } catch (error) {
-            console.error('Error skipping question:', error)
-            toast.error('Failed to skip question. Please try again.')
-        }
-    }, [client, questionNumber, totalQuestions])
+    
     return (
         <InterviewLayout
             isVideoOn={isVideoOn}
@@ -487,7 +477,7 @@ export default function InterviewClient() {
                     </div>
                 </motion.div>
             </div>
-
+                    {creatingInterview && <StartInterview />}
             <AnimatePresence mode="wait">
                 {!isInterviewStarted && !loading.isOpen ? (
                     <motion.div
@@ -517,17 +507,50 @@ export default function InterviewClient() {
                             <Typewriter text={currentQuestion} />
                             <QuestionReader question={currentQuestion} />
                         </h2>
-                        {transcript && (
-                            <div className="p-4 rounded-md mb-4 bg-gray-100 shadow-inner">
-                                <p className="text-sm text-gray-700">{transcript}</p>
-                            </div>
-                        )}
+                            {transcript && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5 }}
+                                    className="mt-6 p-6 rounded-lg bg-gradient-to-br from-purple-50 to-indigo-50 shadow-lg relative overflow-hidden mb-6"
+                                >
+                                    <motion.div
+                                        className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"
+                                        initial={{ scaleX: 0 }}
+                                        animate={{ scaleX: 1 }}
+                                        transition={{ duration: 0.5, delay: 0.2 }}
+                                    />
+                                    {/* <h3 className="font-semibold text-gray-800 mb-3">Transcript:</h3> */}
+                                    <motion.p
+                                        className="text-gray-700 leading-relaxed"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ duration: 0.5, delay: 0.3 }}
+                                    >
+                                        <TypewriterEffect text={transcript} />
+                                    </motion.p>
+                                    <motion.div
+                                        className="absolute bottom-2 right-2 w-16 h-16 opacity-10"
+                                        initial={{ rotate: 0 }}
+                                        animate={{ rotate: 360 }}
+                                        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M8.25 4.5a3.75 3.75 0 117.5 0v8.25a3.75 3.75 0 11-7.5 0V4.5z" />
+                                            <path d="M6 10.5a.75.75 0 01.75.75v1.5a5.25 5.25 0 1010.5 0v-1.5a.75.75 0 011.5 0v1.5a6.751 6.751 0 01-6 6.709v2.291h3a.75.75 0 010 1.5h-7.5a.75.75 0 010-1.5h3v-2.291a6.751 6.751 0 01-6-6.709v-1.5A.75.75 0 016 10.5z" />
+                                        </svg>
+                                    </motion.div>
+                                </motion.div>
+                            )}
+                        
+                        {isAnalyzing && <AnalyzingResponseAnimation/>}
+                        {endInterviewNotification && <EndInterview/>}
                         <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
                             <div className="flex items-center space-x-4">
                                 <Button
                                     onClick={isRecording ? stopRecording : startRecording}
                                     variant={isRecording ? "destructive" : "default"}
-                                    className="flex items-center"
+                                        className={`${isRecording ? 'bg-gray-400' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'} text-white font-semibold flex items-center justify-center px-6 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 disabled:opacity-50 transition-all duration-200`}
                                 >
                                     {isRecording ? <MicOff className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
                                     {isRecording ? 'Stop' : 'Start'} Recording
@@ -535,7 +558,7 @@ export default function InterviewClient() {
                                 {isRecording && <VoiceAnimation />}
                             </div>
                             <div className="flex space-x-2">
-                                <Button onClick={submitAnswer} disabled={!transcript} className="bg-green-500 hover:bg-green-600 text-white">
+                                    <Button onClick={submitAnswer} disabled={!transcript} className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-full font-semibold flex items-center transition-all duration-200">
                                     <Send className="mr-2 h-4 w-4" /> Submit
                                 </Button>
                             </div>
