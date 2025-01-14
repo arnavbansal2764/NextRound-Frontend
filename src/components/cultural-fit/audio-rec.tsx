@@ -1,8 +1,6 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
-import { generateReactHelpers } from "@uploadthing/react"
-import type { OurFileRouter } from "@/app/api/core"
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -17,7 +15,7 @@ import { Segment, SegmentSecondaryTrait } from "@/lib/redis/types"
 import axios from "axios"
 import { start } from "repl"
 import EndCultural from "./end-cultural"
-const { useUploadThing } = generateReactHelpers<OurFileRouter>()
+import QuestionReader from "./screen-reader"
 
 interface AnalysisResult {
     result: string;
@@ -255,7 +253,6 @@ const CulturalFitClient = () => {
     const [isMicOn, setIsMicOn] = useState(true)
     const audioRef = useRef<MediaRecorder | null>(null)
     const audioChunksRef = useRef<Blob[]>([])
-    const { startUpload } = useUploadThing("audioUploader")
     const [isInterviewStarted, setIsInterviewStarted] = useState(false)
     const [progress, setProgress] = useState(0)
     const loading = useLoading()
@@ -269,6 +266,7 @@ const CulturalFitClient = () => {
     const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
     const [questionRead, setQuestionRead] = useState(false);
     const [endInterviewNotification, setEndInterviewNotification] = useState(false)
+    const [fileName,setFileName] = useState<string>("")
     useEffect(() => {
         const randomQuestion = getRandomItemFromArray(questionsPool);
         setQuestion(randomQuestion);
@@ -364,7 +362,8 @@ const CulturalFitClient = () => {
 
     const uploadAudio = async (file: File) => {
         try {
-            setEndInterviewNotification(true)
+            // Start progress indicator
+            setEndInterviewNotification(true);
             const interval = setInterval(() => {
                 setProgress((prevProgress) => {
                     if (prevProgress < 95) {
@@ -373,39 +372,76 @@ const CulturalFitClient = () => {
                     return prevProgress;
                 });
             }, 2000);
-            const response = await startUpload([file]);
 
-            console.log("Upload successful:", response);
+            const fileName = `${Date.now()}-${file.name}`; // Generate unique file name
+            const fileType = file.type;
 
-            if (response && response.length > 0) {
-                const fileUrl = response[0].url;
-                console.log("Upload successful:", fileUrl);
-                setAudioUrl(fileUrl);
-                await analyzeAudio(fileUrl);
+            // Get pre-signed URL for upload
+            const res = await axios.post('/api/s3/upload', { fileName, fileType });
+            const { uploadUrl } = await res.data;
+
+            if (!uploadUrl) {
+                throw new Error('Failed to get upload URL');
             }
-            clearInterval(interval);
-            setProgress(100);
-           
+
+            // Upload the file to S3
+            const upload = await axios.put(uploadUrl, file);
+            if (upload.status !== 200) {
+                throw new Error('Failed to upload audio');
+            }
+
+            clearInterval(interval); // Clear the progress interval
+            setProgress(100); // Set progress to 100% after successful upload
+
+            const audioUrl = uploadUrl.split('?')[0]; // Get the S3 object URL (without query params)
+            setFileName(fileName); // Set the file name for reference
+
+            // Analyze the audio file after successful upload
+            await analyzeAudio(audioUrl);
+
         } catch (error) {
-            console.error("Upload failed:", error);
-            setError("Failed to upload audio. Please try again.");
-        }finally{
-            setEndInterviewNotification(false)
+            console.error('Upload failed:', error);
+            setError('Failed to upload audio. Please try again.');
+        } finally {
+            setEndInterviewNotification(false); // Stop the notification
+        }
+    };
+
+    const deleteAudio = async (fileName: string) => {
+        try {
+            if (!fileName) throw new Error('File name is missing for deletion.');
+
+            // Send delete request to API
+            const res = await axios.post('/api/s3/delete', { fileName });
+            if (res.status !== 200) {
+                throw new Error('Failed to delete the file.');
+            }
+
+            console.log('File deleted successfully.');
+        } catch (error) {
+            console.error('Delete failed:', error);
+            setError('Failed to delete the file.');
         }
     };
 
     const analyzeAudio = async (audioUrl: string) => {
         try {
+            // Send audio URL for analysis
             const response = await axios.post('/api/cultural-fit', { audioUrl, question });
 
-            console.log(response)
-            setAnalysisResult(response.data);
-            setError(null); 
-           
+            console.log('Analysis result:', response.data);
+            setAnalysisResult(response.data); // Set the analysis result
+            setError(null); // Clear any previous error
+
         } catch (error) {
             console.error('Error analyzing audio:', error);
-            setAnalysisResult(example);
-            setError("Error analyzing audio. Please try again.");
+            setAnalysisResult(example); // Fallback result
+            setError('Error analyzing audio. Please try again.');
+        } finally {
+            // Delete the audio file after analysis
+            if (fileName) {
+                await deleteAudio(fileName);
+            }
         }
     };
 
@@ -528,7 +564,8 @@ const CulturalFitClient = () => {
                                     transition={{ duration: 0.5 }}
                                 >
                                     <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-                                        <Typewriter text={question as string} onFinished={()=>speakQuestion(question as string)} />
+                                        <Typewriter text={question as string} />
+                                        <QuestionReader question={question}/>
                                     </h2>
 
                                     <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">

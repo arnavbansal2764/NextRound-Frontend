@@ -11,15 +11,15 @@ import QuestionReader from './screen-reader'
 import VoiceAnimation from '../cultural-fit/voice-animation'
 import useLoading from '@/hooks/useLoading'
 import Modal from '../modals/modal'
-import { UploadDropzone } from "@/lib/uploadThing/uploadThing"
 import toast from "react-hot-toast"
 import { InterviewSocketClient } from '../../lib/interviewsocket/interviewsocket'
 import { InterviewLayout } from './interview-layout'
 import { getTranscript } from '@/lib/audioConvert'
-import { useAudioUpload } from '@/hooks/useAudioUpload'
 import AnalyzingResponseAnimation from './analyzing-response'
 import StartInterview from './start-interview'
 import EndInterview from './end-interview'
+import axios from 'axios'
+import FileDropzone from './file-dropzone'
 const ELEVEN_LABS_VOICE_ID = process.env.NEXT_PUBLIC_ELEVEN_LABS_VOICE_ID || '';
 const ELEVEN_LABS_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY || '';
 
@@ -54,7 +54,6 @@ const TypewriterEffect: React.FC<{ text: string }> = ({ text }) => {
     return <>{displayedText}</>;
 };
 export default function InterviewClient() {
-    const { uploadAudio } = useAudioUpload();
     const [currentTime, setCurrentTime] = useState(new Date())
     const [isVideoOn, setIsVideoOn] = useState(true)
     const [isMicOn, setIsMicOn] = useState(true)
@@ -84,6 +83,7 @@ export default function InterviewClient() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const API_KEY = 'sk_a2210098606af4f44a47ad7b98bb3cb3622e9d63571f6231';
     const VOICE_ID = 'iWNf11sz1GrUE4ppxTOL';
+    const [resumefile,setResumeFile] = useState<File | null>(null)
     useEffect(() => {
         const initStream = async () => {
             try {
@@ -252,7 +252,64 @@ export default function InterviewClient() {
                 recognitionRef.current = mediaRecorder;
             });
     };
+    const uploadAudio = async (file: File) => {
+        try {
+           
+            const fileName = `${Date.now()}-${file.name}`; // Generate unique file name
+            const fileType = file.type;
 
+        
+            const res = await axios.post('/api/s3/upload', { fileName, fileType });
+            const { uploadUrl } = await res.data;
+
+            if (!uploadUrl) {
+                throw new Error('Failed to get upload URL');
+            }
+
+            
+            const upload = await axios.put(uploadUrl, file);
+            if (upload.status !== 200) {
+                throw new Error('Failed to upload audio');
+            }
+
+            const audioUrl = uploadUrl.split('?')[0]; 
+            return audioUrl
+
+        } catch (error) {
+            console.error('Upload failed:', error);
+            setError('Failed to upload audio. Please try again.');
+            return '';
+        } 
+    };
+    const uploadResume = async (file: File) => {
+        try {
+           
+            const fileName = `${Date.now()}-${file.name}`; // Generate unique file name
+            const fileType = file.type;
+
+        
+            const res = await axios.post('/api/s3/upload', { fileName, fileType });
+            const { uploadUrl } = await res.data;
+
+            if (!uploadUrl) {
+                throw new Error('Failed to get upload URL');
+            }
+
+            
+            const upload = await axios.put(uploadUrl, file);
+            if (upload.status !== 200) {
+                throw new Error('Failed to upload audio');
+            }
+
+            const resumeUrl = uploadUrl.split('?')[0]; 
+            setResume(resumeUrl)
+
+        } catch (error) {
+            console.error('Upload failed:', error);
+            setError('Failed to upload audio. Please try again.');
+            
+        } 
+    };
     const stopRecording = () => {
         setIsRecording(false);
         if (recognitionRef.current && recognitionRef.current instanceof MediaRecorder) {
@@ -295,6 +352,20 @@ export default function InterviewClient() {
             toast.error('Failed to start the interview. Please try again.')
         } finally {
             setCreatingInterview(false);
+            try {
+                if (!resumefile?.name) throw new Error('File name is missing for deletion.');
+
+                // Send delete request to API
+                const res = await axios.post('/api/s3/delete', { fileName : resumefile?.name });
+                if (res.status !== 200) {
+                    throw new Error('Failed to delete the file.');
+                }
+
+                console.log('File deleted successfully.');
+            } catch (error) {
+                console.error('Delete failed:', error);
+                setError('Failed to delete the file.');
+            }
         }
     }
 
@@ -344,6 +415,14 @@ export default function InterviewClient() {
         </div>
     )
 
+    const handleFileSelect = async (file: File) => {
+        setResumeFile(file)
+        toast.promise(uploadResume(file), {
+            loading: 'Uploading resume...',
+            success: 'Resume uploaded successfully',
+            error: 'Failed to upload resume'
+        })
+    }
     if (step === STEPS.RESUME) {
         bodyContent = (
             <div className="p-5 rounded-lg text-black bg-gray-50">
@@ -351,17 +430,7 @@ export default function InterviewClient() {
                     Upload Your Resume
                 </h2>
                 <div className="flex flex-col items-center text-black border-collapse">
-                    <UploadDropzone
-                        className='w-full p-4 rounded-lg text-black bg-blue-500'
-                        endpoint="resume"
-                        onClientUploadComplete={(res) => {
-                            setResume(res[0].url)
-                            toast.success("Resume uploaded successfully!")
-                        }}
-                        onUploadError={(error: Error) => {
-                            toast.error(`Error uploading file: ${error.message}`)
-                        }}
-                    />
+                    <FileDropzone onFileSelect={handleFileSelect} />
                 </div>
             </div>
         )

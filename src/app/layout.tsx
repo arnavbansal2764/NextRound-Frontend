@@ -5,7 +5,7 @@ import Footer from "@/components/footer/Footer";
 import LoadingProvider from "@/providers/loadingProvider";
 import ToasterProvider from "@/providers/toastProvider";
 export const metadata: Metadata = {
-  title: "CareerBridge",
+  title: "NextRound",
   description: "An AI Powered platform which revolutionizes hiring",
 };
 

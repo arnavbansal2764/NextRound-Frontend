@@ -163,7 +163,7 @@ export default function LandingPage() {
               Integrations
             </h2>
             <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground">
-              Seamlessly integrate CareerBridge with your existing tools and
+              Seamlessly integrate NextRound with your existing tools and
               workflows.
             </p>
             <div className="grid md:grid-cols-3 gap-6">
@@ -194,7 +194,7 @@ export default function LandingPage() {
                 <CardHeader>
                   <CardTitle>HRIS Systems</CardTitle>
                   <CardDescription>
-                    Integrate CareerBridge with your HR information systems.
+                    Integrate NextRound with your HR information systems.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -243,7 +243,7 @@ export default function LandingPage() {
               Ready to transform your hiring process?
             </h2>
             <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground">
-              Get started with CareerBridge today and unlock the power of
+              Get started with NextRound today and unlock the power of
               AI-driven recruitment.
             </p>
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
