@@ -1,43 +1,66 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
+
+const ELEVEN_LABS_VOICE_ID = process.env.NEXT_PUBLIC_ELEVEN_LABS_VOICE_ID || '';
+const ELEVEN_LABS_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY || '';
 
 interface QuestionReaderProps {
     question: string;
 }
 
+
 const QuestionReader: React.FC<QuestionReaderProps> = ({ question }) => {
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
     useEffect(() => {
-        const synth = window.speechSynthesis;
-        const utterance = new SpeechSynthesisUtterance(question);
+        const convertTextToSpeech = async () => {
+            try {
+                const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_LABS_VOICE_ID}`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'audio/mpeg',
+                        'xi-api-key': ELEVEN_LABS_API_KEY,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: question,
+                        model_id: 'eleven_multilingual_v2',
+                        voice_settings: {
+                            stability: 0.3,
+                            similarity_boost: 0.90,
+                        }
+                    }),
+                });
 
-        const voices = synth.getVoices();
+                if (!response.ok) {
+                    throw new Error('Failed to convert text to speech');
+                }
 
-        // Attempt to select a female English voice
-        const femaleVoice = voices.find(
-            voice =>
-                voice.lang.startsWith('en') &&
-                (   voice.name.toLowerCase().includes("female") ||
-                    voice.name.toLowerCase().includes("zira") ||
-                    voice.name.toLowerCase().includes("susan") ||
-                    voice.name.toLowerCase().includes("google uk english female"))
-        );
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
 
-        // Use the selected female voice or fall back to the first available voice
-        utterance.voice = femaleVoice || voices[0];
+                if (audioRef.current) {
+                    audioRef.current.src = audioUrl;
+                    await audioRef.current.play();
+                }
+            } catch (error) {
+                console.error('Error converting text to speech:', error);
+            }
+        };
 
-        // Set speech properties
-        utterance.pitch = 1.0; // Normal pitch
-        utterance.rate = 1.0;  // Normal speed
+        if (question) {
+            convertTextToSpeech();
+        }
 
-        // Speak the question
-        synth.speak(utterance);
-
-        // Clean up on component unmount
         return () => {
-            synth.cancel();
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.src = '';
+            }
         };
     }, [question]);
 
-    return null; // No UI needed
+    return <audio ref={audioRef} style={{ display: 'none' }} />;
 };
 
 export default QuestionReader;
+
