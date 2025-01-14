@@ -8,12 +8,21 @@ export class RedisManager {
     private static instance: RedisManager;
 
     constructor() {
+        console.log("Initializing RedisManager...");
 
         this.client = createClient({ database: 1 });
-        this.client.connect();
-        //{ database: 1 }
+        this.client.connect().then(() => {
+            console.log("Redis client connected to database 1");
+        }).catch((error) => {
+            console.error("Error connecting Redis client:", error);
+        });
+
         this.publisher = createClient({ database: 1 });
-        this.publisher.connect();
+        this.publisher.connect().then(() => {
+            console.log("Redis publisher connected to database 1");
+        }).catch((error) => {
+            console.error("Error connecting Redis publisher:", error);
+        });
     }
 
     public static getInstance() {
