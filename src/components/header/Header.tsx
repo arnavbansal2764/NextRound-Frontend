@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { BriefcaseIcon, Menu, X, ChevronDown } from 'lucide-react'
+import { BriefcaseIcon, Menu, X, ChevronDown, LogIn, LogOut, User, LucideLayoutDashboard } from 'lucide-react'
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
-import { useRouter } from "next/navigation"
+import { redirect, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -12,13 +12,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
+import { signOut, useSession } from "next-auth/react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const router = useRouter()
+  const { data: session } = useSession()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -103,7 +105,54 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-4">
-        
+          <AnimatePresence>
+            {session ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.5 }}
+                className="flex items-center gap-2"
+              >
+                <Avatar>
+                  <AvatarImage src={session.user?.image || undefined} />
+                  <AvatarFallback>{session.user?.name?.[0] || <User />}</AvatarFallback>
+                </Avatar>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      {session.user?.name}
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onSelect={() => router.push('/dashboard')}>
+                      <LucideLayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => signOut()}>
+                      <LogOut className="mr-2 h-4 w-4 text-red-600" />
+                      <p className="text-red-600">Sign out</p>
+                    </DropdownMenuItem>
+                    
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.5 }}
+              >
+                <Button
+                  onClick={() => router.push('/auth')}
+                  className="bg-primary text-white hover:bg-primary/90"
+                >
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Sign In
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
@@ -163,7 +212,24 @@ export default function Header() {
                   )}
                 </motion.div>
               ))}
-              
+              {!session && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <Button
+                    onClick={() => {
+                      router.push('/auth')
+                      setIsMobileMenuOpen(false)
+                    }}
+                    className="w-full bg-primary text-white hover:bg-primary/90"
+                  >
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Sign In
+                  </Button>
+                </motion.div>
+              )}
             </div>
           </motion.div>
         )}
