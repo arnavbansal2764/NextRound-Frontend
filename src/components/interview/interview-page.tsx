@@ -20,9 +20,10 @@ import StartInterview from './start-interview'
 import EndInterview from './end-interview'
 import axios from 'axios'
 import FileDropzone from './file-dropzone'
+import { sendDataToBackend } from '@/lib/saveData'
+import { useSession } from 'next-auth/react'
 const ELEVEN_LABS_VOICE_ID = process.env.NEXT_PUBLIC_ELEVEN_LABS_VOICE_ID || '';
 const ELEVEN_LABS_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY || '';
-
 enum STEPS {
     RESUME = 0,
     LEVEL = 1,
@@ -77,13 +78,14 @@ export default function InterviewClient() {
     const [feedback, setFeedback] = useState<string>("")
     const [questionNumber, setQuestionNumber] = useState(1)
     const [questionRead, setQuestionRead] = useState(false);
-    const [isAnalyzing,setIsAnalyzing] = useState(false)
+    const [isAnalyzing, setIsAnalyzing] = useState(false)
     const [creatingInterview, setCreatingInterview] = useState(false)
     const [endInterviewNotification, setEndInterviewNotification] = useState(false)
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const API_KEY = 'sk_a2210098606af4f44a47ad7b98bb3cb3622e9d63571f6231';
     const VOICE_ID = 'iWNf11sz1GrUE4ppxTOL';
-    const [resumefile,setResumeFile] = useState<File | null>(null)
+    const [resumefile, setResumeFile] = useState<File | null>(null)
+    const { data: session } = useSession()
     useEffect(() => {
         const initStream = async () => {
             try {
@@ -119,29 +121,33 @@ export default function InterviewClient() {
             speakQuestion(currentQuestion)
         }
     }, [currentQuestion, isSpeakerOn])
-
     const endInterview = async () => {
         if (!client) {
-            console.error('Interview client not initialized')
-            return
+            console.error('Interview client not initialized');
+            return;
         }
-        setEndInterviewNotification(true)
-        setIsInterviewStarted(false)
-        setCurrentQuestion("")
-        setTranscript("")
+        setEndInterviewNotification(true);
+        setIsInterviewStarted(false);
+        setCurrentQuestion("");
+        setTranscript("");
         try {
-            const analysisResult = await client.analyze()
-            setFeedback(analysisResult)
-            await client.stopInterview()
-            client.close()
-            setClient(null)
+            const analysisResultString = await client.analyze(); 
+
+            setFeedback(analysisResultString);
+            await client.stopInterview();
+            client.close();
+            setClient(null);
+
+            const saveData = await sendDataToBackend(`${session?.user.id}`, analysisResultString, 'interview', resume);
+            console.log('Interview data saved successfully:', saveData);
         } catch (error) {
-            console.error('Error ending interview:', error)
-            toast.error('Failed to end interview. Please try again.')
+            console.error('Error ending interview:', error);
+            toast.error('Failed to end interview. Please try again.');
         } finally {
-            setEndInterviewNotification(false)
+            setEndInterviewNotification(false);
         }
-    }
+    };
+
 
     const toggleVideo = () => {
         setIsVideoOn(!isVideoOn)
@@ -189,11 +195,11 @@ export default function InterviewClient() {
                 await audioRef.current.play();
             }
 
-            
+
         } catch (error) {
             console.error('Error generating speech:', error);
             toast.error('Failed to generate speech. Please try again.');
-        }finally{
+        } finally {
             setQuestionRead(false)
         }
     };
@@ -254,11 +260,11 @@ export default function InterviewClient() {
     };
     const uploadAudio = async (file: File) => {
         try {
-           
+
             const fileName = `${Date.now()}-${file.name}`; // Generate unique file name
             const fileType = file.type;
 
-        
+
             const res = await axios.post('/api/s3/upload', { fileName, fileType });
             const { uploadUrl } = await res.data;
 
@@ -266,28 +272,28 @@ export default function InterviewClient() {
                 throw new Error('Failed to get upload URL');
             }
 
-            
+
             const upload = await axios.put(uploadUrl, file);
             if (upload.status !== 200) {
                 throw new Error('Failed to upload audio');
             }
 
-            const audioUrl = uploadUrl.split('?')[0]; 
+            const audioUrl = uploadUrl.split('?')[0];
             return audioUrl
 
         } catch (error) {
             console.error('Upload failed:', error);
             setError('Failed to upload audio. Please try again.');
             return '';
-        } 
+        }
     };
     const uploadResume = async (file: File) => {
         try {
-           
+
             const fileName = `${Date.now()}-${file.name}`; // Generate unique file name
             const fileType = file.type;
 
-        
+
             const res = await axios.post('/api/s3/upload', { fileName, fileType });
             const { uploadUrl } = await res.data;
 
@@ -295,20 +301,20 @@ export default function InterviewClient() {
                 throw new Error('Failed to get upload URL');
             }
 
-            
+
             const upload = await axios.put(uploadUrl, file);
             if (upload.status !== 200) {
                 throw new Error('Failed to upload audio');
             }
 
-            const resumeUrl = uploadUrl.split('?')[0]; 
+            const resumeUrl = uploadUrl.split('?')[0];
             setResume(resumeUrl)
 
         } catch (error) {
             console.error('Upload failed:', error);
             setError('Failed to upload audio. Please try again.');
-            
-        } 
+
+        }
     };
     const stopRecording = () => {
         setIsRecording(false);
@@ -342,7 +348,7 @@ export default function InterviewClient() {
     const fetchQuestions = async () => {
         setCreatingInterview(true);
         try {
-            const newClient = new InterviewSocketClient('wss://ws.nextround.tech')
+            const newClient = new InterviewSocketClient('ws://localhost:8765')
             await newClient.connect(resume, totalQuestions, level)
             setClient(newClient)
             const { question } = await newClient.getQuestion()
@@ -356,7 +362,7 @@ export default function InterviewClient() {
                 if (!resumefile?.name) throw new Error('File name is missing for deletion.');
 
                 // Send delete request to API
-                const res = await axios.post('/api/s3/delete', { fileName : resumefile?.name });
+                const res = await axios.post('/api/s3/delete', { fileName: resumefile?.name });
                 if (res.status !== 200) {
                     throw new Error('Failed to delete the file.');
                 }
@@ -456,7 +462,7 @@ export default function InterviewClient() {
             </div>
         )
     }
-    
+
     const submitAnswer = useCallback(async () => {
         if (!client) {
             console.error('Interview client not initialized')
@@ -481,7 +487,7 @@ export default function InterviewClient() {
         }
     }, [client, currentQuestion, transcript, questionNumber, totalQuestions])
 
-    
+
     return (
         <InterviewLayout
             isVideoOn={isVideoOn}
@@ -546,7 +552,7 @@ export default function InterviewClient() {
                     </div>
                 </motion.div>
             </div>
-                    {creatingInterview && <StartInterview />}
+            {creatingInterview && <StartInterview />}
             <AnimatePresence mode="wait">
                 {!isInterviewStarted && !loading.isOpen ? (
                     <motion.div
@@ -576,50 +582,50 @@ export default function InterviewClient() {
                             <Typewriter text={currentQuestion} />
                             <QuestionReader question={currentQuestion} />
                         </h2>
-                            {transcript && (
+                        {transcript && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5 }}
+                                className="mt-6 p-6 rounded-lg bg-gradient-to-br from-purple-50 to-indigo-50 shadow-lg relative overflow-hidden mb-6"
+                            >
                                 <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.5 }}
-                                    className="mt-6 p-6 rounded-lg bg-gradient-to-br from-purple-50 to-indigo-50 shadow-lg relative overflow-hidden mb-6"
+                                    className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"
+                                    initial={{ scaleX: 0 }}
+                                    animate={{ scaleX: 1 }}
+                                    transition={{ duration: 0.5, delay: 0.2 }}
+                                />
+                                {/* <h3 className="font-semibold text-gray-800 mb-3">Transcript:</h3> */}
+                                <motion.p
+                                    className="text-gray-700 leading-relaxed"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ duration: 0.5, delay: 0.3 }}
                                 >
-                                    <motion.div
-                                        className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"
-                                        initial={{ scaleX: 0 }}
-                                        animate={{ scaleX: 1 }}
-                                        transition={{ duration: 0.5, delay: 0.2 }}
-                                    />
-                                    {/* <h3 className="font-semibold text-gray-800 mb-3">Transcript:</h3> */}
-                                    <motion.p
-                                        className="text-gray-700 leading-relaxed"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ duration: 0.5, delay: 0.3 }}
-                                    >
-                                        <TypewriterEffect text={transcript} />
-                                    </motion.p>
-                                    <motion.div
-                                        className="absolute bottom-2 right-2 w-16 h-16 opacity-10"
-                                        initial={{ rotate: 0 }}
-                                        animate={{ rotate: 360 }}
-                                        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M8.25 4.5a3.75 3.75 0 117.5 0v8.25a3.75 3.75 0 11-7.5 0V4.5z" />
-                                            <path d="M6 10.5a.75.75 0 01.75.75v1.5a5.25 5.25 0 1010.5 0v-1.5a.75.75 0 011.5 0v1.5a6.751 6.751 0 01-6 6.709v2.291h3a.75.75 0 010 1.5h-7.5a.75.75 0 010-1.5h3v-2.291a6.751 6.751 0 01-6-6.709v-1.5A.75.75 0 016 10.5z" />
-                                        </svg>
-                                    </motion.div>
+                                    <TypewriterEffect text={transcript} />
+                                </motion.p>
+                                <motion.div
+                                    className="absolute bottom-2 right-2 w-16 h-16 opacity-10"
+                                    initial={{ rotate: 0 }}
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M8.25 4.5a3.75 3.75 0 117.5 0v8.25a3.75 3.75 0 11-7.5 0V4.5z" />
+                                        <path d="M6 10.5a.75.75 0 01.75.75v1.5a5.25 5.25 0 1010.5 0v-1.5a.75.75 0 011.5 0v1.5a6.751 6.751 0 01-6 6.709v2.291h3a.75.75 0 010 1.5h-7.5a.75.75 0 010-1.5h3v-2.291a6.751 6.751 0 01-6-6.709v-1.5A.75.75 0 016 10.5z" />
+                                    </svg>
                                 </motion.div>
-                            )}
-                        
-                        {isAnalyzing && <AnalyzingResponseAnimation/>}
-                        {endInterviewNotification && <EndInterview/>}
+                            </motion.div>
+                        )}
+
+                        {isAnalyzing && <AnalyzingResponseAnimation />}
+                        {endInterviewNotification && <EndInterview />}
                         <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
                             <div className="flex items-center space-x-4">
                                 <Button
                                     onClick={isRecording ? stopRecording : startRecording}
                                     variant={isRecording ? "destructive" : "default"}
-                                        className={`${isRecording ? 'bg-gray-400' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'} text-white font-semibold flex items-center justify-center px-6 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 disabled:opacity-50 transition-all duration-200`}
+                                    className={`${isRecording ? 'bg-gray-400' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'} text-white font-semibold flex items-center justify-center px-6 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 disabled:opacity-50 transition-all duration-200`}
                                 >
                                     {isRecording ? <MicOff className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
                                     {isRecording ? 'Stop' : 'Start'} Recording
@@ -627,7 +633,7 @@ export default function InterviewClient() {
                                 {isRecording && <VoiceAnimation />}
                             </div>
                             <div className="flex space-x-2">
-                                    <Button onClick={submitAnswer} disabled={!transcript} className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-full font-semibold flex items-center transition-all duration-200">
+                                <Button onClick={submitAnswer} disabled={!transcript} className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-full font-semibold flex items-center transition-all duration-200">
                                     <Send className="mr-2 h-4 w-4" /> Submit
                                 </Button>
                             </div>
@@ -651,4 +657,3 @@ export default function InterviewClient() {
         </InterviewLayout>
     )
 }
-

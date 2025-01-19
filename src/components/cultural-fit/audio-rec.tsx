@@ -16,6 +16,8 @@ import axios from "axios"
 import { start } from "repl"
 import EndCultural from "./end-cultural"
 import QuestionReader from "./screen-reader"
+import { sendDataToBackend } from "@/lib/saveData"
+import { useSession } from "next-auth/react"
 
 interface AnalysisResult {
     result: string;
@@ -266,7 +268,7 @@ const CulturalFitClient = () => {
     const speechSynthesisRef = useRef<SpeechSynthesis | null>(null)
     const [questionRead, setQuestionRead] = useState(false);
     const [endInterviewNotification, setEndInterviewNotification] = useState(false)
-    const [fileName,setFileName] = useState<string>("")
+    const [fileName, setFileName] = useState<string>("")
     useEffect(() => {
         const randomQuestion = getRandomItemFromArray(questionsPool);
         setQuestion(randomQuestion);
@@ -281,7 +283,7 @@ const CulturalFitClient = () => {
         }
 
     }, [])
-    
+    const { data: session } = useSession()
     const speakQuestion = (question: string) => {
         if (!questionRead && question && speechSynthesisRef.current && isSpeakerOn) {
             const utterance = new SpeechSynthesisUtterance(question);
@@ -310,9 +312,9 @@ const CulturalFitClient = () => {
             setError("Unable to access camera. Please check your permissions and try again.")
         }
     }
-    
+
     const startRecording = () => {
-        
+
         setIsInterviewStarted(true)
         setAudioFile(null)
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -430,9 +432,12 @@ const CulturalFitClient = () => {
             const response = await axios.post('/api/cultural-fit', { audioUrl, question });
 
             console.log('Analysis result:', response.data);
-            setAnalysisResult(response.data); // Set the analysis result
+            const analysisResult: AnalysisResult = response.data; // Assuming response.data is already in the correct format
+            setAnalysisResult(analysisResult); // Set the analysis result
             setError(null); // Clear any previous error
 
+            const saveData = await sendDataToBackend(`${session?.user.id}`, analysisResult, 'cultural');
+            console.log('Cultural fit data saved successfully:', saveData);
         } catch (error) {
             console.error('Error analyzing audio:', error);
             setAnalysisResult(example); // Fallback result
@@ -448,7 +453,7 @@ const CulturalFitClient = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 text-gray-800">
-            {endInterviewNotification && <EndCultural/>}
+            {endInterviewNotification && <EndCultural />}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -554,7 +559,7 @@ const CulturalFitClient = () => {
                             transition={{ duration: 0.5 }}
                             className="space-y-6"
                         >
-                            <Progress value={progress} className="w-full h-2 bg-gray-200"  />
+                            <Progress value={progress} className="w-full h-2 bg-gray-200" />
 
                             <Card className="bg-white shadow-lg border-0">
                                 <motion.div
@@ -565,12 +570,12 @@ const CulturalFitClient = () => {
                                 >
                                     <h2 className="text-2xl font-semibold mb-4 text-gray-800">
                                         <Typewriter text={question as string} />
-                                        <QuestionReader question={question}/>
+                                        <QuestionReader question={question} />
                                     </h2>
 
                                     <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
                                         <div className="flex items-center space-x-4">
-                                                {/* {audioFile && (
+                                            {/* {audioFile && (
                                                     <div className="mt-4">
                                                         <audio controls src={URL.createObjectURL(audioFile)} />
                                                     </div>
@@ -619,9 +624,9 @@ const CulturalFitClient = () => {
                             variant="ghost"
                             size="icon"
                             className={`h-12 w-12 rounded-full transition-all duration-300 ${isRecording ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                            onClick={isRecording? stopRecording: startRecording }
+                            onClick={isRecording ? stopRecording : startRecording}
                         >
-                            {isRecording ?   <Mic className="mr-2 h-4 w-4" />:<MicOff className="mr-2 h-4 w-4" />}
+                            {isRecording ? <Mic className="mr-2 h-4 w-4" /> : <MicOff className="mr-2 h-4 w-4" />}
                         </Button>
                         <Button
                             variant="ghost"
