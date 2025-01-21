@@ -2,6 +2,8 @@ import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
 import { NextAuthOptions } from "next-auth";
 import prisma from "./prisma";
+import { getServerSession } from "next-auth/next";
+import { NextResponse } from "next/server";
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -16,28 +18,31 @@ export const authOptions: NextAuthOptions = {
     ],
     callbacks: {
         async signIn({ user }) {
-            try {
-                // Check if user already exists
-                const existingUser = await prisma.user.findUnique({
-                    where: { nextAuthId: user.id },
-                });
-
-                // If user does not exist, create a new user
-                if (!existingUser) {
-                    await prisma.user.create({
-                        data: {
-                            nextAuthId: user.id, // Store NextAuth user ID
-                            name: user.name,
-                            email: user.email ?? '',
-                            image: user.image,
-                        },
-                    });
-                }
-                return true;
-            } catch (error) {
-                console.error('Error creating user:', error);
-                return false;
+            // Clear previous tokens and cookies
+            const session = await getServerSession(authOptions);
+            if (session) {
+                const cookies = new NextResponse().cookies;
+                cookies.delete('next-auth.session-token');
+                cookies.delete('next-auth.csrf-token');
             }
+
+            // Check if user already exists
+            const existingUser = await prisma.user.findUnique({
+                where: { nextAuthId: user.id },
+            });
+
+            // If user does not exist, create a new user
+            if (!existingUser) {
+                await prisma.user.create({
+                    data: {
+                        nextAuthId: user.id, // Store NextAuth user ID
+                        name: user.name,
+                        email: user.email ?? '',
+                        image: user.image,
+                    },
+                });
+            }
+            return true;
         },
         async session({ session, token }) {
             if (token?.email) {
