@@ -1,4 +1,4 @@
-import { Analysis_Result, Course, Score, Segment, SegmentSecondaryTrait } from "./";
+import { Analysis_Result, Course, Score, Segment, SegmentSecondaryTrait,CulturalScore } from "./";
 
 export type ResponseFromAi = {
     type:"RECOMMENDATION",
@@ -30,6 +30,11 @@ export type ResponseFromAi = {
         result: string;
         primary_traits: Segment[];
         segment_secondary_traits: SegmentSecondaryTrait[];
+        scores:{
+            totalScore:number;
+            averageScore:number;
+            scores:CulturalScore[];
+        }
     }
 } |{
     type:"CHECKPOINTS",payload:{
