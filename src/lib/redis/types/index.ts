@@ -48,3 +48,9 @@ export type Course = {
   courseName:string;
   courseLink:string;
 }
+
+export type CulturalScore = {
+  question:string;
+  refrenceAnswer:string;
+  score:number;
+}
