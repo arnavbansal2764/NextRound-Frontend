@@ -1,18 +1,29 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useToast } from '@/hooks/use-toast'
-import CulturalFitAnalysis from './cultural-fit-analysis'
+import { useToast } from "@/hooks/use-toast"
+import CulturalFitAnalysis from "./cultural-fit-analysis"
+
+interface CulturalScore {
+    question: string
+    refrenceAnswer: string
+    score: number
+}
 
 interface CulturalFit {
     id: string
     createdAt: string
     result: string
-    primaryTraits: any[]
-    segmentSecondaryTraits: any[]
+    primary_traits: any[]
+    segment_secondary_traits: any[]
+    scores: {
+        totalScore: number
+        averageScore: number
+        scores: CulturalScore[]
+    }
 }
 
 export default function CulturalFitHistory() {
@@ -23,14 +34,14 @@ export default function CulturalFitHistory() {
     useEffect(() => {
         async function fetchCulturalFits() {
             try {
-                const response = await fetch('/api/user/profile')
+                const response = await fetch("/api/user/profile")
                 if (!response.ok) {
-                    throw new Error('Failed to fetch cultural fits')
+                    throw new Error("Failed to fetch cultural fits")
                 }
                 const userData = await response.json()
                 setCulturalFits(userData.culturals)
             } catch (error) {
-                console.error('Error fetching cultural fits:', error)
+                console.error("Error fetching cultural fits:", error)
                 toast({
                     title: "Error",
                     description: "Failed to load cultural fit history. Please try again later.",
@@ -42,7 +53,16 @@ export default function CulturalFitHistory() {
     }, [toast])
 
     if (culturalFits.length === 0) {
-        return <div>No cultural fit analyses found.</div>
+        return (
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="text-center py-8"
+            >
+                <p className="text-lg text-gray-600">No cultural fit analyses found.</p>
+            </motion.div>
+        )
     }
 
     return (
@@ -63,7 +83,7 @@ export default function CulturalFitHistory() {
                                     variant="ghost"
                                     onClick={() => setExpandedFit(expandedFit === culturalFit.id ? null : culturalFit.id)}
                                 >
-                                    {expandedFit === culturalFit.id ? 'Hide Details' : 'Show Details'}
+                                    {expandedFit === culturalFit.id ? "Hide Details" : "Show Details"}
                                 </Button>
                             </CardTitle>
                         </CardHeader>
@@ -71,16 +91,19 @@ export default function CulturalFitHistory() {
                             {expandedFit === culturalFit.id && (
                                 <motion.div
                                     initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
+                                    animate={{ opacity: 1, height: "auto" }}
                                     exit={{ opacity: 0, height: 0 }}
                                     transition={{ duration: 0.3 }}
                                 >
                                     <CardContent>
-                                        <CulturalFitAnalysis data={{
-                                            result: culturalFit.result,
-                                            primary_traits: culturalFit.primaryTraits,
-                                            segment_secondary_traits: culturalFit.segmentSecondaryTraits
-                                        }} />
+                                        <CulturalFitAnalysis
+                                            data={{
+                                                result: culturalFit.result,
+                                                primary_traits: culturalFit.primary_traits,
+                                                segment_secondary_traits: culturalFit.segment_secondary_traits,
+                                                scores: culturalFit.scores,
+                                            }}
+                                        />
                                     </CardContent>
                                 </motion.div>
                             )}

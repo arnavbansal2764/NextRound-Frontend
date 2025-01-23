@@ -19,6 +19,9 @@ export async function GET() {
                 },
                 culturals: {
                     orderBy: { createdAt: 'desc' }
+                },
+                practiceInterviews: {
+                    orderBy: { createdAt: 'desc' }
                 }
             }
         })

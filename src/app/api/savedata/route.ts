@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { saveCulturalFitResult, saveInterviewResult } from "@/lib/saveData";
+import { saveCulturalFitResult, saveInterviewResult, savePracticeInterviewResult } from "@/lib/saveData";
 
 export async function POST(req: NextRequest) {
-    const { userId, interviewData, resumeUrl, culturalFitData } = await req.json();
+    const { userId, interviewData, resumeUrl, culturalFitData, practiceInterviewData,level, totalQuestions } = await req.json();
 
     try {
         let result;
@@ -10,6 +10,8 @@ export async function POST(req: NextRequest) {
             result = await saveInterviewResult(userId, interviewData, resumeUrl);
         } else if (culturalFitData) {
             result = await saveCulturalFitResult(userId, culturalFitData);
+        } else if (practiceInterviewData) {
+            result = await savePracticeInterviewResult(userId, practiceInterviewData,level, totalQuestions);
         } else {
             throw new Error('No valid data provided');
         }

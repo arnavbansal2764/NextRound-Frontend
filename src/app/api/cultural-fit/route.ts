@@ -16,7 +16,7 @@ export async function POST(req: Request) {
           })
         console.log('Cultural-fit \n', res.payload);
       
-          return NextResponse.json(res.payload);
+        return NextResponse.json(res.payload);
     } catch (error) {
         console.error('Error in cultural-fit API route:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

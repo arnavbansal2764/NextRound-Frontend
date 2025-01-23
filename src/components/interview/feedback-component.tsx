@@ -4,34 +4,13 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronDown, ChevronUp } from 'lucide-react'
-
+import ReactMarkdown from 'react-markdown'
 interface FeedbackComponentProps {
-    feedback: string
+    feedback: any
 }
 
 export default function FeedbackComponent({ feedback }: FeedbackComponentProps) {
     const [isExpanded, setIsExpanded] = useState(false)
-
-    const formatFeedback = (text: string) => {
-        return text.split('\n').map((line, index) => {
-            const cleanedLine = line.trim()
-
-            if (cleanedLine.startsWith('•')) {
-                return <li key={index} className="ml-4">{cleanedLine.substring(1).trim()}</li>
-            } else if (cleanedLine.includes(':')) {
-                const [title, ...content] = cleanedLine.split(':')
-                if (content.length) {
-                    return (
-                        <div key={index} className="font-semibold mt-2">
-                            {title.trim()}:
-                            <span className="font-normal ml-1">{content.join(':').trim()}</span>
-                        </div>
-                    )
-                }
-            }
-            return <p key={index} className="mt-1">{cleanedLine}</p>
-        })
-    }
 
     return (
         <div className="max-w-4xl mx-auto p-4 space-y-6">
@@ -47,9 +26,27 @@ export default function FeedbackComponent({ feedback }: FeedbackComponentProps) 
                 </CardHeader>
                 <CardContent>
                     {isExpanded && (
+                        <>
                         <div className="prose prose-sm max-w-none">
-                            {formatFeedback(feedback)}
+                            <ReactMarkdown>{feedback.analysis}</ReactMarkdown>
                         </div>
+                        <div className="prose prose-sm max-w-none">
+                            <ReactMarkdown>{feedback.averageScore}</ReactMarkdown>
+                        </div>
+                        <div className="prose prose-sm max-w-none">
+                            <ReactMarkdown>{feedback.totalScore}</ReactMarkdown>
+                        </div>
+                        {/* <div className="prose prose-sm max-w-none">
+                            <ReactMarkdown>{feedback.scores.map((score:any)=>(
+                                <div>
+                                    <h2>{score.answer}</h2>
+                                    <p>{score.question}</p>
+                                    <p>{score.refrenceAnswer}</p>
+                                    <p>{score.score}</p>
+                                </div>
+                            ))}</ReactMarkdown>
+                        </div> */}
+                        </>
                     )}
                 </CardContent>
             </Card>

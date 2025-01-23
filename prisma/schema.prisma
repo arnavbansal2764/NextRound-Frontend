@@ -8,35 +8,61 @@ datasource db {
 }
 
 model User {
-  id             String     @id @default(auto()) @map("_id") @db.ObjectId
-  nextAuthId     String     @unique
-  name           String?
-  email          String     @unique
-  emailVerified  DateTime?
-  image          String?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  interviews     Interview[]
-  culturals      Cultural[]
+  id                 String              @id @default(auto()) @map("_id") @db.ObjectId
+  nextAuthId         String              @unique
+  name               String?
+  email              String              @unique
+  emailVerified      DateTime?
+  image              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  interviews         Interview[]
+  culturals          Cultural[]
+  practiceInterviews PracticeInterview[]
 }
 
 model Interview {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String   @db.ObjectId
-  user          User     @relation(fields: [userId], references: [id])
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @db.ObjectId
+  user           User     @relation(fields: [userId], references: [id])
   analysisResult String
-  resumeUrl     String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @default(now())
+  resumeUrl      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
 }
 
 model Cultural {
-  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId                String   @db.ObjectId
-  user                  User     @relation(fields: [userId], references: [id])
-  result                String
-  primaryTraits         Json[]
-  segmentSecondaryTraits Json[]
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @default(now())
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id])
+
+  // Overall analysis result
+  result String
+
+  // Primary traits data - array of segments with emotions
+  primaryTraits Json[] // Maps to primary_traits: Segment[]
+
+  // Secondary traits data - array of behavioral traits
+  segmentSecondaryTraits Json[] // Maps to segment_secondary_traits: SegmentSecondaryTrait[]
+
+  // Scores data
+  scores Json // Contains totalScore, averageScore, and array of CulturalScore
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PracticeInterview {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @db.ObjectId
+  user           User     @relation(fields: [userId], references: [id])
+  level          String // Beginner, Intermediate, Advanced
+  totalQuestions Int
+  analysis       String
+  scores         Json[] // Array of Score objects
+  averageScore   Float
+  totalScore     Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

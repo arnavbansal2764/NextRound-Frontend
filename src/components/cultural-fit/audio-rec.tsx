@@ -6,23 +6,32 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Mic, MicOff, Video, VideoOff, MonitorUp, MessageSquare, Users, Phone, Send, Play, Loader2, VolumeX, Volume2 } from 'lucide-react'
+import { Mic, MicOff, Video, VideoOff, MonitorUp, MessageSquare, Users, Phone, Send, Play, VolumeX, Volume2 } from 'lucide-react'
 import Typewriter from 'react-ts-typewriter'
 import useLoading from "@/hooks/useLoading"
 import VoiceAnimation from "./voice-animation"
 import CulturalFitAnalysis from "./cultural-fit-display"
 import { Segment, SegmentSecondaryTrait } from "@/lib/redis/types"
 import axios from "axios"
-import { start } from "repl"
 import EndCultural from "./end-cultural"
 import QuestionReader from "./screen-reader"
 import { sendDataToBackend } from "@/lib/saveData"
 import { useSession } from "next-auth/react"
+interface CulturalScore {
+    question: string
+    refrenceAnswer: string
+    score: number
+}
 
-interface AnalysisResult {
-    result: string;
-    primary_traits: Segment[];
-    segment_secondary_traits: SegmentSecondaryTrait[];
+interface CulturalFitAnalysisProps {
+    result: string
+    primary_traits: Segment[]
+    segment_secondary_traits: SegmentSecondaryTrait[]
+    scores: {
+        totalScore: number
+        averageScore: number
+        scores: CulturalScore[]
+    }
 }
 const questionsPool = [
     "Introduce yourself.",
@@ -130,122 +139,6 @@ function getRandomItemFromArray(arr: string[]): string {
     const randomIndex = Math.floor(Math.random() * arr.length);
     return arr[randomIndex];
 }
-const example = {
-    "result": "**Overall Assessment of the Response**\n\nThe candidate's response is incomplete, indicating a failure to address the prompt effectively. The response appears to be a random collection of text snippets without any clear connection to the question of cultural fit. This lack of focus and disjointedness raises concerns about the candidate's ability to engage thoughtfully with a prompt.\n\n**Analysis of Emotional Patterns**\n\nThe emotional patterns in the candidate's response are puzzling. In Segment 0, the text \"projects and typescript\" is accompanied by a mix of emotions, including interest, satisfaction, and calmness. However, this emotional reaction seems unrelated to the question of cultural fit. In Segment 1, the text \"hello I love WhatsApp\" is accompanied by emotions of interest, calmness, and joy. Again, this emotional response appears disconnected from the question at hand.\n\n**Evaluation of Communication Style**\n\nThe candidate's communication style is unclear and chaotic. The response meanders through disjointed text snippets, lacks coherence, and fails to provide a clear answer to the question. This chaotic communication style suggests that the candidate may struggle to articulate their thoughts and engage with a prompt in a clear and effective manner.\n\n**Suggestions for Improvement**\n\nTo improve their response, the candidate should:\n\n1. Focus on the question and provide a clear and concise answer.\n2. Choose relevant text snippets that directly address the prompt.\n3. Develop a more coherent and organized communication style.\n4. Provide evidence of their thinking and analysis in response to the question.\n\n**Cultural Fit Score (1-5)**\n\nBased on the analysis, I would give the candidate a cultural fit score of 2 out of 5. The candidate's chaotic communication style, lack of focus, and failure to engage thoughtfully with the prompt suggest that they may struggle to fit into a cultural environment that values clear and effective communication.\n\nTo improve their cultural fit, the candidate should:\n\n1. Develop a clearer and more organized communication style.\n2. Focus on the question and provide a clear and concise answer.\n3. Engage more thoughtfully with prompts and provide evidence of their thinking and analysis.\n4. Show a better understanding of the cultural values and norms that are relevant to the organization or team.",
-    "primary_traits": [
-        {
-            "segment": 1,
-            "emotions": [
-                {
-                    "emotion_name": "Interest",
-                    "emotion_score": 0.3209715187549591
-                },
-                {
-                    "emotion_name": "Satisfaction",
-                    "emotion_score": 0.2949056327342987
-                },
-                {
-                    "emotion_name": "Calmness",
-                    "emotion_score": 0.28099432587623596
-                }
-            ]
-        },
-        {
-            "segment": 2,
-            "emotions": [
-                {
-                    "emotion_name": "Interest",
-                    "emotion_score": 0.3586927354335785
-                },
-                {
-                    "emotion_name": "Calmness",
-                    "emotion_score": 0.28279438614845276
-                },
-                {
-                    "emotion_name": "Joy",
-                    "emotion_score": 0.14740656316280365
-                }
-            ]
-        },
-        {
-            "segment": "final",
-            "emotions": [
-                {
-                    "emotion_name": "Creative Thinking",
-                    "emotion_score": 0.153
-                },
-                {
-                    "emotion_name": "Adaptability",
-                    "emotion_score": 0.149
-                },
-                {
-                    "emotion_name": "Problem Solving",
-                    "emotion_score": 0.128
-                },
-                {
-                    "emotion_name": "Empathy",
-                    "emotion_score": 0.115
-                },
-                {
-                    "emotion_name": "Emotional Resilience",
-                    "emotion_score": 0.085
-                }
-            ]
-        }
-    ],
-    "segment_secondary_traits": [
-        {
-            "segment": 1,
-            "traits": [
-                {
-                    "trait": "Creative Thinking",
-                    "score": 0.151
-                },
-                {
-                    "trait": "Adaptability",
-                    "score": 0.148
-                },
-                {
-                    "trait": "Problem Solving",
-                    "score": 0.124
-                },
-                {
-                    "trait": "Empathy",
-                    "score": 0.115
-                },
-                {
-                    "trait": "Emotional Resilience",
-                    "score": 0.084
-                }
-            ]
-        },
-        {
-            "segment": 2,
-            "traits": [
-                {
-                    "trait": "Creative Thinking",
-                    "score": 0.163
-                },
-                {
-                    "trait": "Adaptability",
-                    "score": 0.157
-                },
-                {
-                    "trait": "Problem Solving",
-                    "score": 0.132
-                },
-                {
-                    "trait": "Empathy",
-                    "score": 0.115
-                },
-                {
-                    "trait": "Emotional Resilience",
-                    "score": 0.085
-                }
-            ]
-        }
-    ]
-}
 
 const CulturalFitClient = () => {
     const [isRecording, setIsRecording] = useState(false)
@@ -258,7 +151,7 @@ const CulturalFitClient = () => {
     const [isInterviewStarted, setIsInterviewStarted] = useState(false)
     const [progress, setProgress] = useState(0)
     const loading = useLoading()
-    const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
+    const [analysisResult, setAnalysisResult] = useState<CulturalFitAnalysisProps | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [question, setQuestion] = useState<string>('');
     const [currentTime, setCurrentTime] = useState(new Date())
@@ -314,14 +207,25 @@ const CulturalFitClient = () => {
     }
 
     const startRecording = () => {
+        setIsInterviewStarted(true);
+        setAudioFile(null);
 
-        setIsInterviewStarted(true)
-        setAudioFile(null)
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             navigator.mediaDevices
                 .getUserMedia({ audio: true })
                 .then((stream) => {
                     const mediaRecorder = new MediaRecorder(stream);
+                    const audioContext = new AudioContext();
+                    const source = audioContext.createMediaStreamSource(stream);
+                    const analyser = audioContext.createAnalyser();
+
+                    source.connect(analyser);
+                    analyser.fftSize = 256; // Adjust FFT size
+                    const dataArray = new Uint8Array(analyser.fftSize);
+
+                    let silenceStart:any = null;
+                    let isSilenceDetected = false;
+
                     audioRef.current = mediaRecorder;
                     audioChunksRef.current = [];
 
@@ -341,8 +245,37 @@ const CulturalFitClient = () => {
                         console.log("Recording finished, file URL:", URL.createObjectURL(audioBlob));
                     };
 
+                    const checkSilence = () => {
+                        analyser.getByteTimeDomainData(dataArray);
+                        const volume = dataArray.reduce((sum, value) => sum + Math.abs(value - 128), 0) / dataArray.length;
+
+                        if (volume < 5) {
+                            // Silence threshold (adjust as needed)
+                            if (!silenceStart) {
+                                silenceStart = performance.now();
+                            } else if (performance.now() - silenceStart > 3000) {
+                                // 3 seconds of silence
+                                if (!isSilenceDetected) {
+                                    console.log("Silence detected. Stopping recording...");
+                                    isSilenceDetected = true;
+                                    mediaRecorder.stop();
+                                    stream.getTracks().forEach((track) => track.stop());
+                                    audioContext.close();
+                                    setIsRecording(false);
+                                }
+                            }
+                        } else {
+                            silenceStart = null; // Reset silence timer
+                        }
+
+                        if (mediaRecorder.state === "recording") {
+                            requestAnimationFrame(checkSilence);
+                        }
+                    };
+
                     mediaRecorder.start();
                     setIsRecording(true);
+                    requestAnimationFrame(checkSilence);
                 })
                 .catch((error) => {
                     console.error("Error accessing microphone:", error);
@@ -353,6 +286,7 @@ const CulturalFitClient = () => {
             setError("Your browser does not support audio recording. Please try using a different browser.");
         }
     };
+
 
     const stopRecording = () => {
         if (audioRef.current && isRecording) {
@@ -432,15 +366,15 @@ const CulturalFitClient = () => {
             const response = await axios.post('/api/cultural-fit', { audioUrl, question });
 
             console.log('Analysis result:', response.data);
-            const analysisResult: AnalysisResult = response.data; // Assuming response.data is already in the correct format
+            const analysisResult: CulturalFitAnalysisProps = response.data; // Assuming response.data is already in the correct format
             setAnalysisResult(analysisResult); // Set the analysis result
             setError(null); // Clear any previous error
-
+            
             const saveData = await sendDataToBackend(`${session?.user.id}`, analysisResult, 'cultural');
             console.log('Cultural fit data saved successfully:', saveData);
         } catch (error) {
             console.error('Error analyzing audio:', error);
-            setAnalysisResult(example); // Fallback result
+            // setAnalysisResult(example); // Fallback result
             setError('Error analyzing audio. Please try again.');
         } finally {
             // Delete the audio file after analysis
@@ -671,4 +605,3 @@ const CulturalFitClient = () => {
 }
 
 export default CulturalFitClient
-

@@ -1,7 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap");
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -76,6 +76,9 @@
   }
 }
 
+.bg-gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600;
+}
 /* Custom gradients */
 .gradient-text {
   @apply bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600;

@@ -1,9 +1,9 @@
-'use client'
+"use client"
 
-import { useState, useEffect, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect, useMemo } from "react"
+import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Line } from 'react-chartjs-2'
+import { Line } from "react-chartjs-2"
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -13,20 +13,12 @@ import {
     Title,
     Tooltip,
     Legend,
-    ChartData,
-    ChartOptions
-} from 'chart.js'
-import { useToast } from '@/hooks/use-toast'
+    type ChartData,
+    type ChartOptions,
+} from "chart.js"
+import { useToast } from "@/hooks/use-toast"
 
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend
-)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
 interface Interview {
     id: string
@@ -34,92 +26,133 @@ interface Interview {
     analysisResult: string
 }
 
+interface CulturalFit {
+    id: string
+    createdAt: string
+    scores: {
+        totalScore: number
+        averageScore: number
+    }
+}
+
+interface PracticeInterview {
+    id: string
+    createdAt: string
+    totalScore: number
+    averageScore: number
+}
+
 export default function DataAnalysis() {
     const [interviews, setInterviews] = useState<Interview[]>([])
+    const [culturalFits, setCulturalFits] = useState<CulturalFit[]>([])
+    const [practiceInterviews, setPracticeInterviews] = useState<PracticeInterview[]>([])
     const { toast } = useToast()
 
     useEffect(() => {
-        async function fetchInterviews() {
+        async function fetchData() {
             try {
-                const response = await fetch('/api/user/profile')
+                const response = await fetch("/api/user/profile")
                 if (!response.ok) {
-                    throw new Error('Failed to fetch interviews')
+                    throw new Error("Failed to fetch user data")
                 }
                 const userData = await response.json()
                 setInterviews(userData.interviews)
+                setCulturalFits(userData.culturals)
+                setPracticeInterviews(userData.practiceInterviews)
             } catch (error) {
-                console.error('Error fetching interviews:', error)
+                console.error("Error fetching user data:", error)
                 toast({
                     title: "Error",
-                    description: "Failed to load interview data. Please try again later.",
+                    description: "Failed to load user data. Please try again later.",
                     variant: "destructive",
                 })
             }
         }
-        fetchInterviews()
+        fetchData()
     }, [toast])
 
-    const chartData: ChartData<'line'> = useMemo(() => {
-        const sortedInterviews = [...interviews].sort((a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        )
+    const chartData: ChartData<"line"> = useMemo(() => {
+        const allData = [
+            ...interviews.map((interview) => ({
+                date: new Date(interview.createdAt),
+                score: Number.parseFloat(interview.analysisResult.match(/Score: (\d+)/)?.[1] || "0"),
+                type: "Interview",
+            })),
+            ...culturalFits.map((cf) => ({
+                date: new Date(cf.createdAt),
+                score: cf.scores.averageScore,
+                type: "Cultural Fit",
+            })),
+            ...practiceInterviews.map((pi) => ({
+                date: new Date(pi.createdAt),
+                score: pi.averageScore,
+                type: "Practice Interview",
+            })),
+        ].sort((a, b) => a.date.getTime() - b.date.getTime())
 
-        const dates = sortedInterviews.map(interview =>
-            new Date(interview.createdAt).toLocaleDateString()
-        )
-
-        const scores = sortedInterviews.map(interview => {
-            // This is a mock score calculation. Replace with your actual logic.
-            // For example, you could parse the analysisResult and extract a numerical score.
-            return parseFloat(interview.analysisResult.match(/Score: (\d+)/)?.[1] || "0")
-        })
+        const dates = allData.map((item) => item.date.toLocaleDateString())
+        const uniqueDates = Array.from(new Set(dates))
 
         return {
-            labels: dates,
+            labels: uniqueDates,
             datasets: [
                 {
-                    label: 'Interview Performance',
-                    data: scores,
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.5)',
-                    tension: 0.1
-                }
-            ]
+                    label: "Interview Performance",
+                    data: allData.filter((item) => item.type === "Interview").map((item) => item.score),
+                    borderColor: "rgb(75, 192, 192)",
+                    backgroundColor: "rgba(75, 192, 192, 0.5)",
+                    tension: 0.1,
+                },
+                {
+                    label: "Cultural Fit",
+                    data: allData.filter((item) => item.type === "Cultural Fit").map((item) => item.score),
+                    borderColor: "rgb(255, 99, 132)",
+                    backgroundColor: "rgba(255, 99, 132, 0.5)",
+                    tension: 0.1,
+                },
+                {
+                    label: "Practice Interview",
+                    data: allData.filter((item) => item.type === "Practice Interview").map((item) => item.score),
+                    borderColor: "rgb(54, 162, 235)",
+                    backgroundColor: "rgba(54, 162, 235, 0.5)",
+                    tension: 0.1,
+                },
+            ],
         }
-    }, [interviews])
+    }, [interviews, culturalFits, practiceInterviews])
 
-    const options: ChartOptions<'line'> = {
+    const options: ChartOptions<"line"> = {
         responsive: true,
         plugins: {
             legend: {
-                position: 'top' as const,
+                position: "top" as const,
             },
             title: {
                 display: true,
-                text: 'Interview Performance Over Time'
+                text: "Performance Over Time",
             },
             tooltip: {
                 callbacks: {
-                    label: (context) => `Score: ${context.parsed.y}`
-                }
-            }
+                    label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(2)}`,
+                },
+            },
         },
         scales: {
             x: {
                 title: {
                     display: true,
-                    text: 'Interview Date'
-                }
+                    text: "Date",
+                },
             },
             y: {
                 title: {
                     display: true,
-                    text: 'Performance Score'
+                    text: "Score",
                 },
                 min: 0,
-                max: 100
-            }
-        }
+                max: 10,
+            },
+        },
     }
 
     return (
@@ -133,10 +166,10 @@ export default function DataAnalysis() {
                     <CardTitle>Performance Analysis</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {interviews.length > 0 ? (
+                    {interviews.length > 0 || culturalFits.length > 0 || practiceInterviews.length > 0 ? (
                         <Line options={options} data={chartData} />
                     ) : (
-                        <p>No interview data available.</p>
+                        <p>No data available.</p>
                     )}
                 </CardContent>
             </Card>

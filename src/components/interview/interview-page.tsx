@@ -75,7 +75,7 @@ export default function InterviewClient() {
     const [client, setClient] = useState<InterviewSocketClient | null>(null)
     const [transcript, setTranscript] = useState('');
     const recognitionRef = useRef<SpeechRecognition | MediaRecorder | null>(null);
-    const [feedback, setFeedback] = useState<string>("")
+    const [feedback, setFeedback] = useState<any>("")
     const [questionNumber, setQuestionNumber] = useState(1)
     const [questionRead, setQuestionRead] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -223,41 +223,81 @@ export default function InterviewClient() {
 
     const startRecording = () => {
         setIsRecording(true);
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(stream => {
-                const mediaRecorder = new MediaRecorder(stream);
-                const audioChunks: Blob[] = [];
+        navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+            const mediaRecorder = new MediaRecorder(stream);
+            const audioChunks: Blob[] = [];
+            const audioContext = new AudioContext();
+            const source = audioContext.createMediaStreamSource(stream);
+            const analyser = audioContext.createAnalyser();
 
-                mediaRecorder.addEventListener("dataavailable", event => {
-                    audioChunks.push(event.data);
-                });
+            source.connect(analyser);
+            analyser.fftSize = 256;
+            const dataArray = new Uint8Array(analyser.fftSize);
 
-                mediaRecorder.addEventListener("stop", async () => {
-                    const audioBlob = new Blob(audioChunks);
-                    const audioFile = new File([audioBlob], "audio.wav", { type: "audio/wav" });
-                    setIsAnalyzing(true)
-                    try {
-                        const audioUrl = await uploadAudio(audioFile);
+            let silenceStart: number | null = null;
+            let isSilenceDetected = false;
 
-                        if (audioUrl !== 'Error Uploading Audio') {
-                            const transcriptText = await getTranscript(audioUrl);
-                            setTranscript(transcriptText);
-                        } else {
-                            toast.error('Error uploading audio');
-                        }
-
-                    } catch (error) {
-                        console.error('Error processing audio:', error);
-                        toast.error('Error processing audio');
-                    } finally {
-                        setIsAnalyzing(false)
-                    }
-                });
-
-                mediaRecorder.start();
-                recognitionRef.current = mediaRecorder;
+            mediaRecorder.addEventListener("dataavailable", (event) => {
+                audioChunks.push(event.data);
             });
+
+            const checkSilence = () => {
+                analyser.getByteTimeDomainData(dataArray);
+                const volume = dataArray.reduce((sum, value) => sum + Math.abs(value - 128), 0) / dataArray.length;
+
+                if (volume < 5) {
+                    // Silence threshold (adjust as needed)
+                    if (!silenceStart) {
+                        silenceStart = performance.now();
+                    } else if (performance.now() - silenceStart > 3000) {
+                        // 3 seconds of silence
+                        if (!isSilenceDetected) {
+                            setIsRecording(false);
+                            console.log("Silence detected. Stopping recording...");
+                            isSilenceDetected = true;
+                            mediaRecorder.stop();
+                            stream.getTracks().forEach((track) => track.stop());
+                            audioContext.close();
+                        }
+                    }
+                } else {
+                    silenceStart = null; // Reset silence timer
+                }
+
+                if (mediaRecorder.state === "recording") {
+                    requestAnimationFrame(checkSilence);
+                }
+            };
+
+            mediaRecorder.addEventListener("stop", async () => {
+                const audioBlob = new Blob(audioChunks);
+                const audioFile = new File([audioBlob], "audio.wav", { type: "audio/wav" });
+                setIsAnalyzing(true);
+                try {
+                    const audioUrl = await uploadAudio(audioFile);
+
+                    if (audioUrl !== "Error Uploading Audio") {
+                        const transcriptText = await getTranscript(audioUrl);
+                        setTranscript(transcriptText);
+                    } else {
+                        toast.error("Error uploading audio");
+                    }
+                } catch (error) {
+                    console.error("Error processing audio:", error);
+                    toast.error("Error processing audio");
+                } finally {
+                    setIsAnalyzing(false);
+                }
+            });
+
+            mediaRecorder.start();
+            recognitionRef.current = mediaRecorder;
+
+            // Start checking for silence
+            requestAnimationFrame(checkSilence);
+        });
     };
+
     const uploadAudio = async (file: File) => {
         try {
 
@@ -348,7 +388,7 @@ export default function InterviewClient() {
     const fetchQuestions = async () => {
         setCreatingInterview(true);
         try {
-            const newClient = new InterviewSocketClient(`${process.env.WEBSOCKET_ID as string}` || 'ws://localhost:8765')
+            const newClient = new InterviewSocketClient( 'ws://localhost:8765')
             await newClient.connect(resume, totalQuestions, level)
             setClient(newClient)
             const { question } = await newClient.getQuestion()
@@ -553,6 +593,8 @@ export default function InterviewClient() {
                 </motion.div>
             </div>
             {creatingInterview && <StartInterview />}
+            {isAnalyzing && <AnalyzingResponseAnimation />}
+            {endInterviewNotification && <EndInterview />}
             <AnimatePresence mode="wait">
                 {!isInterviewStarted && !loading.isOpen ? (
                     <motion.div
@@ -618,8 +660,7 @@ export default function InterviewClient() {
                             </motion.div>
                         )}
 
-                        {isAnalyzing && <AnalyzingResponseAnimation />}
-                        {endInterviewNotification && <EndInterview />}
+                        
                         <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
                             <div className="flex items-center space-x-4">
                                 <Button
