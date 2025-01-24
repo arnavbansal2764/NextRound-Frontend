@@ -46,13 +46,21 @@ export interface InitialSetupMessage {
     action: "analyze";
   }
   
+  export interface Score {
+    question: string;
+    answer: string;
+    code: string;
+    referenceAnswer: string;
+    score: number;
+}
+
   // Analyze responses response
   export interface AnalyzeResponse {
     status: "ok" | "error";
     code: number;
     action: "analyze";
     analysis: string;
-    scores: any;
+    scores: Score[];
     averageScore: number;
     totalScore: number;
   }
@@ -77,3 +85,4 @@ export interface InitialSetupMessage {
     action: string;
     message: string;
   }
+
