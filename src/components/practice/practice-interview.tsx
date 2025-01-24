@@ -148,7 +148,11 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
   }, [currentQuestion, isSpeakerOn])
 
   const endInterview = async () => {
-    if (!client || !session?.user?.id) {
+    if(!session?.user?.id){
+      toast.error("Not authorized to save interview data");
+      return;
+    }
+    if (!client ) {
       toast.error("Not authorized or client not initialized");
       return;
     }
