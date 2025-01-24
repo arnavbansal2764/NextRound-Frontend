@@ -50,7 +50,7 @@ export interface InitialSetupMessage {
     question: string;
     answer: string;
     code: string;
-    referenceAnswer: string;
+    refrenceAnswer: string;
     score: number;
 }
 

@@ -1,59 +1,61 @@
 "use client"
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import type React from "react"
+import { useState, useEffect, useRef, useMemo, useCallback } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Mic, MicOff, Send, Play, GraduationCap, Briefcase, Trophy, ChevronUp, ChevronDown } from 'lucide-react'
-import Typewriter from 'react-ts-typewriter'
-import FeedbackComponent from './feedback-component'
-import QuestionReader from './screen-reader'
-import VoiceAnimation from '../cultural-fit/voice-animation'
-import useLoading from '@/hooks/useLoading'
-import Modal from '../modals/modal'
+import { Mic, MicOff, Send, Play, GraduationCap, Briefcase, Trophy, ChevronUp, ChevronDown } from "lucide-react"
+import Typewriter from "react-ts-typewriter"
+import FeedbackComponent from "./feedback-component"
+import QuestionReader from "./screen-reader"
+import VoiceAnimation from "../cultural-fit/voice-animation"
+import useLoading from "@/hooks/useLoading"
+import Modal from "../modals/modal"
 import toast from "react-hot-toast"
-import { InterviewSocketClient } from '../../lib/interviewsocket/interviewsocket'
-import { InterviewLayout } from './interview-layout'
-import { getTranscript } from '@/lib/audioConvert'
-import AnalyzingResponseAnimation from './analyzing-response'
-import StartInterview from './start-interview'
-import EndInterview from './end-interview'
-import axios from 'axios'
-import FileDropzone from './file-dropzone'
-import { sendDataToBackend } from '@/lib/saveData'
-import { useSession } from 'next-auth/react'
-const ELEVEN_LABS_VOICE_ID = process.env.NEXT_PUBLIC_ELEVEN_LABS_VOICE_ID || '';
-const ELEVEN_LABS_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY || '';
+import { InterviewSocketClient } from "../../lib/interviewsocket/interviewsocket"
+import { InterviewLayout } from "./interview-layout"
+import { getTranscript } from "@/lib/audioConvert"
+import AnalyzingResponseAnimation from "./analyzing-response"
+import StartInterview from "./start-interview"
+import EndInterview from "./end-interview"
+import axios from "axios"
+import FileDropzone from "./file-dropzone"
+import { sendDataToBackend } from "@/lib/saveData"
+import { useSession } from "next-auth/react"
+import type { AnalyzeResponse } from "../../../types/interviews/normal"
+const ELEVEN_LABS_VOICE_ID = process.env.NEXT_PUBLIC_ELEVEN_LABS_VOICE_ID || ""
+const ELEVEN_LABS_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY || ""
 enum STEPS {
     RESUME = 0,
     LEVEL = 1,
-    QUESTIONS = 2
+    QUESTIONS = 2,
 }
 
 const levels = [
-    { text: 'Entry-Level', icon: GraduationCap },
-    { text: 'Intermediate', icon: Briefcase },
-    { text: 'Senior Positions', icon: Trophy },
+    { text: "Entry-Level", icon: GraduationCap },
+    { text: "Intermediate", icon: Briefcase },
+    { text: "Senior Positions", icon: Trophy },
 ]
-const TypewriterEffect: React.FC<{ text: string }> = ({ text }) => {
-    const [displayedText, setDisplayedText] = useState('');
 
-    useEffect(() => {
-        let i = 0;
-        const typingInterval = setInterval(() => {
-            if (i < text.length) {
-                setDisplayedText((prev) => prev + text.charAt(i));
-                i++;
-            } else {
-                clearInterval(typingInterval);
-            }
-        }, 30);
-
-        return () => clearInterval(typingInterval);
-    }, [text]);
-
-    return <>{displayedText}</>;
-};
+const example = {
+    status: "ok",
+    code: 200,
+    action: "analyze",
+    analysis:
+        "**Overall Performance Analysis**\n\nBased on the provided performance review and resume, here is an overall analysis of your performance.\n\n**Strengths:**\n\n1. **Technical Skills**: You have demonstrated exceptional skills in programming languages such as C++, Python, and JavaScript. Your proficiency in web development frameworks like NextJS, ReactJS, and MongoDB is also noteworthy.\n2. **Problem-Solving**: Your ability to design and develop complex systems, such as the NextRound platform, demonstrates your problem-solving skills and attention to detail.\n3. **Cloud Computing**: Your experience with cloud services like AWS, Docker, and Vercel showcases your understanding of cloud computing and scalability.\n4. **Team Leadership**: Your leadership roles in organizing events and managing teams at PEC ACM and the International Conference on Design and Manufacturing demonstrate your leadership skills and ability to work with others.\n\n**Areas for Improvement:**\n\n1. **Communication Skills**: While your technical skills are impressive, there is room for improvement in your communication skills. Your responses to questions, such as the one about scalability, could be more precise and detailed.\n2. **Scalability Understanding**: Although you have designed a scalable architecture, your understanding of scalability can be improved. You could benefit from studying and exploring more advanced scalability strategies and tools.\n3. **Real-World Applications**: While your projects demonstrate technical skills, their real-world applications could be more clearly demonstrated. This could enhance your understanding of the impact of your work.\n4. **Code Quality**: Although you have developed complex systems, there is no explicit mention of code quality. You should strive to maintain high standards of code quality, including documentation, testing, and code organization.\n\n**Constructive Feedback:**\n\n1. **Scalability Question Response**: For the scalability question, you could have responded with a more detailed explanation, such as:\n\n\"To handle three or four multiple users at a point might seem trivial, but it's a step in building a system that can scale to handle thousands of concurrent users. For that, we would need to leverage load balancing techniques, optimize database queries, and implement caching mechanisms to improve application responsiveness. Additionally, we would need to monitor and analyze system performance to identify bottlenecks and optimize accordingly. By addressing these concerns, we can ensure that the NextRound platform's backend system can handle a large number of users efficiently.\"\n\n2. **Improving Code Quality**: When developing complex systems, you should focus on maintaining high standards of code quality. This includes:\n\n* Writing clean, readable, and well-organized code\n* Documenting code and processes thoroughly\n* Conducting thorough testing and debugging to ensure code reliability\n* Using best practices for object-oriented programming (OOP) and modular design\n\n3. **Enhancing Real-World Applications**: When developing projects, think about how they can be applied in real-world scenarios. This could include:\n\n* Identifying potential use cases and scenarios where your project can be applied\n* Conducting user research to understand their needs and pain points\n* Designing your project with user-friendliness and accessibility in mind\n* Highlighting the benefits of your project, such as increased efficiency or cost savings\n\n**Recommendations:**\n\n1. Continue to develop your technical skills by exploring new programming languages, frameworks, and tools.\n2. Enhance your understanding of scalability by researching and implementing advanced scalability strategies and tools.\n3. Focus on improving your code quality by following best practices for OOP and modular design, and by conducting thorough testing and debugging.\n4. Consider taking courses or attending workshops on communication skills and presentation to improve your ability to articulate your thoughts and ideas to others.",
+    scores: [
+        {
+            question: "What is the primary concern for scalability in the design of the NextRound platform's backend system?",
+            answer: "To handle three or four multiple users at a point.",
+            refrenceAnswer:
+                "Scalability is a primary concern for the design of the NextRound platform's backend system as it needs to support up to 1000 concurrent users seamlessly. To address this, I designed a scalable architecture using Docker to ensure that the system can handle a large volume of users without any performance degradation. This scalability enables users to access the platform without any delays or errors, ensuring a smooth user experience.",
+            score: 2.25,
+        },
+    ],
+    averageScore: 2.25,
+    totalScore: 2.25,
+}
 export default function InterviewClient() {
     const [currentTime, setCurrentTime] = useState(new Date())
     const [isVideoOn, setIsVideoOn] = useState(true)
@@ -73,17 +75,17 @@ export default function InterviewClient() {
     const [stream, setStream] = useState<MediaStream | null>(null)
     const loading = useLoading()
     const [client, setClient] = useState<InterviewSocketClient | null>(null)
-    const [transcript, setTranscript] = useState('');
-    const recognitionRef = useRef<SpeechRecognition | MediaRecorder | null>(null);
-    const [feedback, setFeedback] = useState<any>("")
+    const [transcript, setTranscript] = useState("")
+    const recognitionRef = useRef<SpeechRecognition | MediaRecorder | null>(null)
+    const [feedback, setFeedback] = useState<AnalyzeResponse | null>(null)
     const [questionNumber, setQuestionNumber] = useState(1)
-    const [questionRead, setQuestionRead] = useState(false);
+    const [questionRead, setQuestionRead] = useState(false)
     const [isAnalyzing, setIsAnalyzing] = useState(false)
     const [creatingInterview, setCreatingInterview] = useState(false)
     const [endInterviewNotification, setEndInterviewNotification] = useState(false)
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-    const API_KEY = 'sk_a2210098606af4f44a47ad7b98bb3cb3622e9d63571f6231';
-    const VOICE_ID = 'iWNf11sz1GrUE4ppxTOL';
+    const audioRef = useRef<HTMLAudioElement | null>(null)
+    const API_KEY = "sk_a2210098606af4f44a47ad7b98bb3cb3622e9d63571f6231"
+    const VOICE_ID = "iWNf11sz1GrUE4ppxTOL"
     const [resumefile, setResumeFile] = useState<File | null>(null)
     const { data: session } = useSession()
     useEffect(() => {
@@ -104,7 +106,7 @@ export default function InterviewClient() {
 
         return () => {
             if (stream) {
-                stream.getTracks().forEach(track => track.stop())
+                stream.getTracks().forEach((track) => track.stop())
             }
         }
     }, [])
@@ -121,45 +123,56 @@ export default function InterviewClient() {
             speakQuestion(currentQuestion)
         }
     }, [currentQuestion, isSpeakerOn])
+    useEffect(() => {
+        console.log("Feedback state updated:", feedback);
+    }, [feedback]);
     const endInterview = async () => {
         if (!client) {
-            console.error('Interview client not initialized');
-            return;
+            console.error("Interview client not initialized")
+            return
         }
-        setEndInterviewNotification(true);
-        setIsInterviewStarted(false);
-        setCurrentQuestion("");
-        setTranscript("");
+        setEndInterviewNotification(true)
+        setIsInterviewStarted(false)
+        setCurrentQuestion("")
+        setTranscript("")
         try {
-            const analysisResultString = await client.analyze(); 
+            const analysisResult: AnalyzeResponse = await client.analyze()
+            console.log(analysisResult)
+            setFeedback(analysisResult as AnalyzeResponse)
+            console.log("Set feedback",feedback)
+            await client.stopInterview()
+            client.close()
+            setClient(null)
 
-            setFeedback(analysisResultString);
-            await client.stopInterview();
-            client.close();
-            setClient(null);
-
-            const saveData = await sendDataToBackend(`${session?.user.id}`, analysisResultString, 'interview', resume);
-            console.log('Interview data saved successfully:', saveData);
+            // if (session?.user?.id) {
+            //     const saveData = await sendDataToBackend({
+            //         userId: session.user.id,
+            //         interviewData: analysisResult,
+            //         resumeUrl: resume,
+            //     });
+            //     console.log('Interview data sent to backend successfully', saveData);
+            // } else {
+            //     console.error('User not authenticated');
+            // }
         } catch (error) {
-            console.error('Error ending interview:', error);
-            toast.error('Failed to end interview. Please try again.');
+            console.error("Error ending interview:", error)
+            toast.error("Failed to end interview. Please try again.")
         } finally {
-            setEndInterviewNotification(false);
+            setEndInterviewNotification(false)
         }
-    };
-
+    }
 
     const toggleVideo = () => {
         setIsVideoOn(!isVideoOn)
         if (stream) {
-            stream.getVideoTracks().forEach(track => track.enabled = !isVideoOn)
+            stream.getVideoTracks().forEach((track) => (track.enabled = !isVideoOn))
         }
     }
 
     const toggleMic = () => {
         setIsMicOn(!isMicOn)
         if (stream) {
-            stream.getAudioTracks().forEach(track => track.enabled = !isMicOn)
+            stream.getAudioTracks().forEach((track) => (track.enabled = !isMicOn))
         }
     }
 
@@ -167,49 +180,47 @@ export default function InterviewClient() {
         try {
             setQuestionRead(true)
             const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_LABS_VOICE_ID}`, {
-                method: 'POST',
+                method: "POST",
                 headers: {
-                    'Accept': 'audio/mpeg',
-                    'xi-api-key': ELEVEN_LABS_API_KEY,
-                    'Content-Type': 'application/json',
+                    Accept: "audio/mpeg",
+                    "xi-api-key": ELEVEN_LABS_API_KEY,
+                    "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
                     text: question,
-                    model_id: 'eleven_multilingual_v2',
+                    model_id: "eleven_multilingual_v2",
                     voice_settings: {
                         stability: 0.3,
-                        similarity_boost: 0.90,
-                    }
+                        similarity_boost: 0.9,
+                    },
                 }),
-            });
+            })
 
             if (!response.ok) {
-                throw new Error('Failed to convert text to speech');
+                throw new Error("Failed to convert text to speech")
             }
 
-            const audioBlob = await response.blob();
-            const audioUrl = URL.createObjectURL(audioBlob);
+            const audioBlob = await response.blob()
+            const audioUrl = URL.createObjectURL(audioBlob)
 
             if (audioRef.current) {
-                audioRef.current.src = audioUrl;
-                await audioRef.current.play();
+                audioRef.current.src = audioUrl
+                await audioRef.current.play()
             }
-
-
         } catch (error) {
-            console.error('Error generating speech:', error);
-            toast.error('Failed to generate speech. Please try again.');
+            console.error("Error generating speech:", error)
+            toast.error("Failed to generate speech. Please try again.")
         } finally {
             setQuestionRead(false)
         }
-    };
+    }
 
     const toggleSpeaker = () => {
         setIsSpeakerOn(!isSpeakerOn)
         if (audioRef.current) {
             if (isSpeakerOn) {
-                audioRef.current.pause();
-                audioRef.current.currentTime = 0;
+                audioRef.current.pause()
+                audioRef.current.currentTime = 0
             } else {
                 speakQuestion(currentQuestion)
             }
@@ -222,146 +233,137 @@ export default function InterviewClient() {
     }
 
     const startRecording = () => {
-        setIsRecording(true);
+        setIsRecording(true)
         navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-            const mediaRecorder = new MediaRecorder(stream);
-            const audioChunks: Blob[] = [];
-            const audioContext = new AudioContext();
-            const source = audioContext.createMediaStreamSource(stream);
-            const analyser = audioContext.createAnalyser();
+            const mediaRecorder = new MediaRecorder(stream)
+            const audioChunks: Blob[] = []
+            const audioContext = new AudioContext()
+            const source = audioContext.createMediaStreamSource(stream)
+            const analyser = audioContext.createAnalyser()
 
-            source.connect(analyser);
-            analyser.fftSize = 256;
-            const dataArray = new Uint8Array(analyser.fftSize);
+            source.connect(analyser)
+            analyser.fftSize = 256
+            const dataArray = new Uint8Array(analyser.fftSize)
 
-            let silenceStart: number | null = null;
-            let isSilenceDetected = false;
+            let silenceStart: number | null = null
+            let isSilenceDetected = false
 
             mediaRecorder.addEventListener("dataavailable", (event) => {
-                audioChunks.push(event.data);
-            });
+                audioChunks.push(event.data)
+            })
 
             const checkSilence = () => {
-                analyser.getByteTimeDomainData(dataArray);
-                const volume = dataArray.reduce((sum, value) => sum + Math.abs(value - 128), 0) / dataArray.length;
+                analyser.getByteTimeDomainData(dataArray)
+                const volume = dataArray.reduce((sum, value) => sum + Math.abs(value - 128), 0) / dataArray.length
 
                 if (volume < 5) {
                     // Silence threshold (adjust as needed)
                     if (!silenceStart) {
-                        silenceStart = performance.now();
+                        silenceStart = performance.now()
                     } else if (performance.now() - silenceStart > 3000) {
                         // 3 seconds of silence
                         if (!isSilenceDetected) {
-                            setIsRecording(false);
-                            console.log("Silence detected. Stopping recording...");
-                            isSilenceDetected = true;
-                            mediaRecorder.stop();
-                            stream.getTracks().forEach((track) => track.stop());
-                            audioContext.close();
+                            setIsRecording(false)
+                            console.log("Silence detected. Stopping recording...")
+                            isSilenceDetected = true
+                            mediaRecorder.stop()
+                            stream.getTracks().forEach((track) => track.stop())
+                            audioContext.close()
                         }
                     }
                 } else {
-                    silenceStart = null; // Reset silence timer
+                    silenceStart = null // Reset silence timer
                 }
 
                 if (mediaRecorder.state === "recording") {
-                    requestAnimationFrame(checkSilence);
+                    requestAnimationFrame(checkSilence)
                 }
-            };
+            }
 
             mediaRecorder.addEventListener("stop", async () => {
-                const audioBlob = new Blob(audioChunks);
-                const audioFile = new File([audioBlob], "audio.wav", { type: "audio/wav" });
-                setIsAnalyzing(true);
+                const audioBlob = new Blob(audioChunks)
+                const audioFile = new File([audioBlob], "audio.wav", { type: "audio/wav" })
+                setIsAnalyzing(true)
                 try {
-                    const audioUrl = await uploadAudio(audioFile);
+                    const audioUrl = await uploadAudio(audioFile)
 
                     if (audioUrl !== "Error Uploading Audio") {
-                        const transcriptText = await getTranscript(audioUrl);
-                        setTranscript(transcriptText);
+                        const transcriptText = await getTranscript(audioUrl)
+                        setTranscript(transcriptText)
                     } else {
-                        toast.error("Error uploading audio");
+                        toast.error("Error uploading audio")
                     }
                 } catch (error) {
-                    console.error("Error processing audio:", error);
-                    toast.error("Error processing audio");
+                    console.error("Error processing audio:", error)
+                    toast.error("Error processing audio")
                 } finally {
-                    setIsAnalyzing(false);
+                    setIsAnalyzing(false)
                 }
-            });
+            })
 
-            mediaRecorder.start();
-            recognitionRef.current = mediaRecorder;
+            mediaRecorder.start()
+            recognitionRef.current = mediaRecorder
 
             // Start checking for silence
-            requestAnimationFrame(checkSilence);
-        });
-    };
+            requestAnimationFrame(checkSilence)
+        })
+    }
 
     const uploadAudio = async (file: File) => {
         try {
+            const fileName = `${Date.now()}-${file.name}` // Generate unique file name
+            const fileType = file.type
 
-            const fileName = `${Date.now()}-${file.name}`; // Generate unique file name
-            const fileType = file.type;
-
-
-            const res = await axios.post('/api/s3/upload', { fileName, fileType });
-            const { uploadUrl } = await res.data;
+            const res = await axios.post("/api/s3/upload", { fileName, fileType })
+            const { uploadUrl } = await res.data
 
             if (!uploadUrl) {
-                throw new Error('Failed to get upload URL');
+                throw new Error("Failed to get upload URL")
             }
 
-
-            const upload = await axios.put(uploadUrl, file);
+            const upload = await axios.put(uploadUrl, file)
             if (upload.status !== 200) {
-                throw new Error('Failed to upload audio');
+                throw new Error("Failed to upload audio")
             }
 
-            const audioUrl = uploadUrl.split('?')[0];
+            const audioUrl = uploadUrl.split("?")[0]
             return audioUrl
-
         } catch (error) {
-            console.error('Upload failed:', error);
-            setError('Failed to upload audio. Please try again.');
-            return '';
+            console.error("Upload failed:", error)
+            setError("Failed to upload audio. Please try again.")
+            return ""
         }
-    };
+    }
     const uploadResume = async (file: File) => {
         try {
+            const fileName = `${Date.now()}-${file.name}` // Generate unique file name
+            const fileType = file.type
 
-            const fileName = `${Date.now()}-${file.name}`; // Generate unique file name
-            const fileType = file.type;
-
-
-            const res = await axios.post('/api/s3/upload', { fileName, fileType });
-            const { uploadUrl } = await res.data;
+            const res = await axios.post("/api/s3/upload", { fileName, fileType })
+            const { uploadUrl } = await res.data
 
             if (!uploadUrl) {
-                throw new Error('Failed to get upload URL');
+                throw new Error("Failed to get upload URL")
             }
 
-
-            const upload = await axios.put(uploadUrl, file);
+            const upload = await axios.put(uploadUrl, file)
             if (upload.status !== 200) {
-                throw new Error('Failed to upload audio');
+                throw new Error("Failed to upload audio")
             }
 
-            const resumeUrl = uploadUrl.split('?')[0];
+            const resumeUrl = uploadUrl.split("?")[0]
             setResume(resumeUrl)
-
         } catch (error) {
-            console.error('Upload failed:', error);
-            setError('Failed to upload audio. Please try again.');
-
+            console.error("Upload failed:", error)
+            setError("Failed to upload audio. Please try again.")
         }
-    };
+    }
     const stopRecording = () => {
-        setIsRecording(false);
+        setIsRecording(false)
         if (recognitionRef.current && recognitionRef.current instanceof MediaRecorder) {
-            recognitionRef.current.stop();
+            recognitionRef.current.stop()
         }
-    };
+    }
 
     const onBack = () => {
         setStep((value) => value - 1)
@@ -386,31 +388,31 @@ export default function InterviewClient() {
     }, [step])
 
     const fetchQuestions = async () => {
-        setCreatingInterview(true);
+        setCreatingInterview(true)
         try {
-            const newClient = new InterviewSocketClient( 'ws://localhost:8765')
+            const newClient = new InterviewSocketClient("ws://localhost:8765")
             await newClient.connect(resume, totalQuestions, level)
             setClient(newClient)
             const { question } = await newClient.getQuestion()
             setCurrentQuestion(question)
         } catch (error) {
-            console.error('Error fetching questions:', error)
-            toast.error('Failed to start the interview. Please try again.')
+            console.error("Error fetching questions:", error)
+            toast.error("Failed to start the interview. Please try again.")
         } finally {
-            setCreatingInterview(false);
+            setCreatingInterview(false)
             try {
-                if (!resumefile?.name) throw new Error('File name is missing for deletion.');
+                if (!resumefile?.name) throw new Error("File name is missing for deletion.")
 
                 // Send delete request to API
-                const res = await axios.post('/api/s3/delete', { fileName: resumefile?.name });
+                const res = await axios.post("/api/s3/delete", { fileName: resumefile?.name })
                 if (res.status !== 200) {
-                    throw new Error('Failed to delete the file.');
+                    throw new Error("Failed to delete the file.")
                 }
 
-                console.log('File deleted successfully.');
+                console.log("File deleted successfully.")
             } catch (error) {
-                console.error('Delete failed:', error);
-                setError('Failed to delete the file.');
+                console.error("Delete failed:", error)
+                setError("Failed to delete the file.")
             }
         }
     }
@@ -419,8 +421,7 @@ export default function InterviewClient() {
         if (!resume) {
             toast.error("Please upload your resume")
             return
-        }
-        else if (step !== STEPS.QUESTIONS) {
+        } else if (step !== STEPS.QUESTIONS) {
             return onNext()
         }
 
@@ -441,15 +442,13 @@ export default function InterviewClient() {
 
     let bodyContent = (
         <div className="flex flex-col items-center space-y-4">
-            <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">
-                What level of position are you targeting?
-            </h2>
+            <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">What level of position are you targeting?</h2>
             <div className="space-y-4 w-full max-w-md">
                 {levels.map((levelItem, index) => (
                     <Button
                         key={levelItem.text}
                         onClick={() => setLevel(levelItem.text)}
-                        className={`w-full py-3 text-lg text-gray-800 flex items-center justify-center ${levelItem.text === level ? 'border-2 border-blue-500' : ''
+                        className={`w-full py-3 text-lg text-gray-800 flex items-center justify-center ${levelItem.text === level ? "border-2 border-blue-500" : ""
                             }`}
                         variant="outline"
                     >
@@ -464,17 +463,15 @@ export default function InterviewClient() {
     const handleFileSelect = async (file: File) => {
         setResumeFile(file)
         toast.promise(uploadResume(file), {
-            loading: 'Uploading resume...',
-            success: 'Resume uploaded successfully',
-            error: 'Failed to upload resume'
+            loading: "Uploading resume...",
+            success: "Resume uploaded successfully",
+            error: "Failed to upload resume",
         })
     }
     if (step === STEPS.RESUME) {
         bodyContent = (
             <div className="p-5 rounded-lg text-black bg-gray-50">
-                <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">
-                    Upload Your Resume
-                </h2>
+                <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">Upload Your Resume</h2>
                 <div className="flex flex-col items-center text-black border-collapse">
                     <FileDropzone onFileSelect={handleFileSelect} />
                 </div>
@@ -485,16 +482,14 @@ export default function InterviewClient() {
     if (step === STEPS.QUESTIONS) {
         bodyContent = (
             <div className="p-8 max-w-lg mx-auto bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg shadow-lg">
-                <h2 className="text-2xl font-bold mb-4 text-center text-white">
-                    How many questions do you want to answer?
-                </h2>
+                <h2 className="text-2xl font-bold mb-4 text-center text-white">How many questions do you want to answer?</h2>
                 <div className="relative">
                     <input
                         type="number"
                         min="1"
                         max="10"
                         value={totalQuestions}
-                        onChange={(e) => setTotalQuestions(parseInt(e.target.value))}
+                        onChange={(e) => setTotalQuestions(Number.parseInt(e.target.value))}
                         className="block w-full p-3 rounded-md text-black bg-white placeholder-gray-500 shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                         placeholder="Enter a number between 1 and 10"
                     />
@@ -505,14 +500,14 @@ export default function InterviewClient() {
 
     const submitAnswer = useCallback(async () => {
         if (!client) {
-            console.error('Interview client not initialized')
+            console.error("Interview client not initialized")
             return
         }
 
         try {
             await client.addQuestionAnswer(currentQuestion, transcript)
-            setProgress((prevProgress) => prevProgress + (100 / totalQuestions))
-            setQuestionNumber(prevNumber => prevNumber + 1)
+            setProgress((prevProgress) => prevProgress + 100 / totalQuestions)
+            setQuestionNumber((prevNumber) => prevNumber + 1)
 
             if (questionNumber < totalQuestions) {
                 const { question } = await client.getQuestion()
@@ -522,11 +517,10 @@ export default function InterviewClient() {
                 await endInterview()
             }
         } catch (error) {
-            console.error('Error submitting answer:', error)
-            toast.error('Failed to submit answer. Please try again.')
+            console.error("Error submitting answer:", error)
+            toast.error("Failed to submit answer. Please try again.")
         }
     }, [client, currentQuestion, transcript, questionNumber, totalQuestions])
-
 
     return (
         <InterviewLayout
@@ -568,13 +562,7 @@ export default function InterviewClient() {
                     className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden shadow-lg"
                 >
                     {isVideoOn ? (
-                        <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-full object-cover"
-                        />
+                        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-100">
                             <Avatar className="h-32 w-32 ring-4 ring-gray-300">
@@ -605,9 +593,16 @@ export default function InterviewClient() {
                         transition={{ duration: 0.3 }}
                         className="text-center"
                     >
-                        <h2 className="text-4xl font-bold mb-4 text-gray-800 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Ready for Your Interview?</h2>
-                        <p className="mb-6 text-gray-600">Click the button below to begin. You'll be presented with a series of questions to answer.</p>
-                        <Button onClick={() => setModalOpen(true)} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg px-8 py-3 rounded-full transition-all duration-300 transform hover:scale-105">
+                        <h2 className="text-4xl font-bold mb-4 text-gray-800 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
+                            Ready for Your Interview?
+                        </h2>
+                        <p className="mb-6 text-gray-600">
+                            Click the button below to begin. You'll be presented with a series of questions to answer.
+                        </p>
+                        <Button
+                            onClick={() => setModalOpen(true)}
+                            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg px-8 py-3 rounded-full transition-all duration-300 transform hover:scale-105"
+                        >
                             <Play className="mr-2 h-5 w-5" /> Start Interview
                         </Button>
                     </motion.div>
@@ -644,13 +639,13 @@ export default function InterviewClient() {
                                     animate={{ opacity: 1 }}
                                     transition={{ duration: 0.5, delay: 0.3 }}
                                 >
-                                    <TypewriterEffect text={transcript} />
+                                <Typewriter text={transcript} />
                                 </motion.p>
                                 <motion.div
                                     className="absolute bottom-2 right-2 w-16 h-16 opacity-10"
                                     initial={{ rotate: 0 }}
                                     animate={{ rotate: 360 }}
-                                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                                    transition={{ duration: 20, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M8.25 4.5a3.75 3.75 0 117.5 0v8.25a3.75 3.75 0 11-7.5 0V4.5z" />
@@ -660,29 +655,32 @@ export default function InterviewClient() {
                             </motion.div>
                         )}
 
-                        
                         <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
                             <div className="flex items-center space-x-4">
                                 <Button
                                     onClick={isRecording ? stopRecording : startRecording}
                                     variant={isRecording ? "destructive" : "default"}
-                                    className={`${isRecording ? 'bg-gray-400' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'} text-white font-semibold flex items-center justify-center px-6 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 disabled:opacity-50 transition-all duration-200`}
+                                    className={`${isRecording ? "bg-gray-400" : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"} text-white font-semibold flex items-center justify-center px-6 py-3 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 disabled:opacity-50 transition-all duration-200`}
                                 >
                                     {isRecording ? <MicOff className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
-                                    {isRecording ? 'Stop' : 'Start'} Recording
+                                    {isRecording ? "Stop" : "Start"} Recording
                                 </Button>
                                 {isRecording && <VoiceAnimation />}
                             </div>
                             <div className="flex space-x-2">
-                                <Button onClick={submitAnswer} disabled={!transcript} className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-full font-semibold flex items-center transition-all duration-200">
+                                <Button
+                                    onClick={submitAnswer}
+                                    disabled={!transcript}
+                                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-full font-semibold flex items-center transition-all duration-200"
+                                >
                                     <Send className="mr-2 h-4 w-4" /> Submit
                                 </Button>
                             </div>
                         </div>
                     </motion.div>
                 )}
-                {feedback && <FeedbackComponent feedback={feedback} />}
-
+                {feedback && <FeedbackComponent feedback={feedback as AnalyzeResponse} />}
+                {/* <FeedbackComponent feedback={example as AnalyzeResponse} /> */}
             </AnimatePresence>
 
             <Modal
@@ -698,3 +696,4 @@ export default function InterviewClient() {
         </InterviewLayout>
     )
 }
+

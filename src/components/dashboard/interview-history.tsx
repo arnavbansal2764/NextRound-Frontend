@@ -6,11 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import FeedbackComponent from './feedback-component'
 import { useToast } from '@/hooks/use-toast'
+import { AnalyzeResponse } from '../../../types/interviews/normal'
 
-interface Interview {
+interface Interview extends AnalyzeResponse {
     id: string
     createdAt: string
-    analysisResult: string
+    analysis: string
+    scores: any[]
+    averageScore: number
+    totalScore: number
+    resumeUrl: string
 }
 
 export default function InterviewHistory() {
@@ -74,7 +79,7 @@ export default function InterviewHistory() {
                                     transition={{ duration: 0.3 }}
                                 >
                                     <CardContent>
-                                        <FeedbackComponent feedback={interview.analysisResult} />
+                                        <FeedbackComponent feedback={interview} />
                                     </CardContent>
                                 </motion.div>
                             )}
@@ -85,4 +90,3 @@ export default function InterviewHistory() {
         </motion.div>
     )
 }
-

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import prisma from "@/lib/prisma";
 import { Segment, SegmentSecondaryTrait } from './redis/types';
+import { AnalyzeResponse } from '../../types/interviews/normal';
 
 interface CulturalScore {
     question: string
@@ -72,11 +73,15 @@ export async function saveCulturalFitResult(userId: string, analysisResult: Cult
     });
 }
 
-export async function saveInterviewResult(userId: string, analysisResult: string, resumeUrl: string) {
+export async function saveInterviewResult(userId: string, analysisResult: AnalyzeResponse, resumeUrl: string) {
     return await prisma.interview.create({
         data: {
             userId,
-            analysisResult,
+            analysis: analysisResult.analysis,
+            //@ts-ignore
+            scores: analysisResult.scores,
+            averageScore: analysisResult.averageScore,
+            totalScore: analysisResult.totalScore,
             resumeUrl,
         },
     });

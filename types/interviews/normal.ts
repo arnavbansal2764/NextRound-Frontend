@@ -49,15 +49,15 @@ export interface InitialSetupMessage {
   export interface Score {
     question: string;
     answer: string;
-    referenceAnswer: string;
+    refrenceAnswer: string;
     score: number;
 }
 
   // Analyze responses response
   export interface AnalyzeResponse {
-    status: "ok" | "error";
+    status: string;
     code: number;
-    action: "analyze";
+    action: string;
     analysis: string;
     scores: Score[];
     averageScore: number;

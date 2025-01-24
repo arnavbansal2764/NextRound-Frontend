@@ -18,13 +18,14 @@ import { useSession } from "next-auth/react"
 import { InterviewSocketClient } from "@/lib/otherInterview"
 import { InterviewLayout } from "./interview-layout"
 import StartInterview from "../interview/start-interview"
-import QuestionReader from "../interview/screen-reader"
+import QuestionReader from "../cultural-fit/screen-reader"
 import AnalyzingResponseAnimation from "../interview/analyzing-response"
 import EndInterview from "../interview/end-interview"
 import VoiceAnimation from "../interview/voice-animation"
 import FeedbackComponent from "../interview/feedback-component"
 import Modal from "../modals/modal"
 import InterviewFeedback from "./interview-feedback"
+import { synthesizeSpeech } from "@/lib/polly_speech"
 
 const ELEVEN_LABS_VOICE_ID = process.env.NEXT_PUBLIC_ELEVEN_LABS_VOICE_ID || ""
 const ELEVEN_LABS_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY || ""
@@ -39,26 +40,6 @@ const levels = [
   { text: "Intermediate", icon: Briefcase },
   { text: "Advanced", icon: Trophy },
 ]
-
-const TypewriterEffect: React.FC<{ text: string }> = ({ text }) => {
-  const [displayedText, setDisplayedText] = useState("")
-
-  useEffect(() => {
-    let i = 0
-    const typingInterval = setInterval(() => {
-      if (i < text.length) {
-        setDisplayedText((prev) => prev + text.charAt(i))
-        i++
-      } else {
-        clearInterval(typingInterval)
-      }
-    }, 30)
-
-    return () => clearInterval(typingInterval)
-  }, [text])
-
-  return <>{displayedText}</>
-}
 
 interface PracticeInterviewProps {
   websocketUrl: string;
@@ -141,12 +122,6 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
     }
   }, [])
 
-  useEffect(() => {
-    if (currentQuestion && isSpeakerOn) {
-      speakQuestion(currentQuestion)
-    }
-  }, [currentQuestion, isSpeakerOn])
-
   const endInterview = async () => {
     if(!session?.user?.id){
       toast.error("Not authorized to save interview data");
@@ -214,43 +189,6 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
     }
   }
 
-  const speakQuestion = async (question: string) => {
-    try {
-      setQuestionRead(true)
-      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_LABS_VOICE_ID}`, {
-        method: "POST",
-        headers: {
-          Accept: "audio/mpeg",
-          "xi-api-key": ELEVEN_LABS_API_KEY,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          text: question,
-          model_id: "eleven_multilingual_v2",
-          voice_settings: {
-            stability: 0.3,
-            similarity_boost: 0.9,
-          },
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to convert text to speech")
-      }
-
-      const audioBlob = await response.blob()
-      const audioUrl = URL.createObjectURL(audioBlob)
-
-      if (audioRef.current) {
-        audioRef.current.src = audioUrl
-        await audioRef.current.play()
-      }
-    } catch (error) {
-      console.error("Error generating speech:", error)
-    } finally {
-      setQuestionRead(false)
-    }
-  }
 
   const toggleSpeaker = () => {
     setIsSpeakerOn(!isSpeakerOn)
@@ -258,8 +196,6 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
       if (isSpeakerOn) {
         audioRef.current.pause()
         audioRef.current.currentTime = 0
-      } else {
-        speakQuestion(currentQuestion)
       }
     }
   }
@@ -616,7 +552,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.3 }}
                 >
-                  <TypewriterEffect text={transcript} />
+                  <Typewriter text={transcript} />
                 </motion.p>
                 <motion.div
                   className="absolute bottom-2 right-2 w-16 h-16 opacity-10"
