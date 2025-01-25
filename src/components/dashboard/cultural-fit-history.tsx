@@ -60,7 +60,12 @@ export default function CulturalFitHistory() {
                 transition={{ duration: 0.5 }}
                 className="text-center py-8"
             >
-                <p className="text-lg text-gray-600">No cultural fit analyses found.</p>
+                <h2 className="text-3xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600">
+                    Cultural Fit History
+                </h2>
+                <p className="text-lg text-gray-600">
+                    No cultural fit analyses found. Start your first cultural fit analysis to see your history!
+                </p>
             </motion.div>
         )
     }
@@ -70,22 +75,44 @@ export default function CulturalFitHistory() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="mt-8"
+            className="mt-8 max-w-7xl mx-auto"
         >
-            <h2 className="text-2xl font-bold mb-4">Cultural Fit History</h2>
-            <div className="space-y-4">
+            <h2 className="text-3xl font-bold mb-6 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600">
+                Cultural Fit History
+            </h2>
+            <div className="space-y-6">
                 {culturalFits.map((culturalFit) => (
-                    <Card key={culturalFit.id}>
+                    <Card key={culturalFit.id} className="overflow-hidden transition-shadow duration-300 hover:shadow-lg">
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
-                                <span>Cultural Fit Analysis on {new Date(culturalFit.createdAt).toLocaleDateString()}</span>
+                                <span className="text-lg font-semibold text-gray-800">
+                                    Cultural Fit Analysis on{" "}
+                                    {new Date(culturalFit.createdAt).toLocaleDateString(undefined, {
+                                        year: "numeric",
+                                        month: "long",
+                                        day: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                    })}
+                                </span>
                                 <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     onClick={() => setExpandedFit(expandedFit === culturalFit.id ? null : culturalFit.id)}
+                                    className="transition-colors duration-200 hover:bg-purple-100"
                                 >
                                     {expandedFit === culturalFit.id ? "Hide Details" : "Show Details"}
                                 </Button>
                             </CardTitle>
+                            <div className="flex justify-between items-center mt-2">
+                                <span className="text-sm text-gray-600">
+                                    Average Score:{" "}
+                                    <span className="font-semibold text-indigo-600">{culturalFit.scores.averageScore.toFixed(2)}/10</span>
+                                </span>
+                                <span className="text-sm text-gray-600">
+                                    Total Score:{" "}
+                                    <span className="font-semibold text-green-600">{culturalFit.scores.totalScore.toFixed(2)}</span>
+                                </span>
+                            </div>
                         </CardHeader>
                         <AnimatePresence>
                             {expandedFit === culturalFit.id && (

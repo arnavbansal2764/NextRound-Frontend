@@ -26,6 +26,7 @@ import FeedbackComponent from "../interview/feedback-component"
 import Modal from "../modals/modal"
 import InterviewFeedback from "./interview-feedback"
 import { synthesizeSpeech } from "@/lib/polly_speech"
+import { useRouter } from "next/navigation"
 
 const ELEVEN_LABS_VOICE_ID = process.env.NEXT_PUBLIC_ELEVEN_LABS_VOICE_ID || ""
 const ELEVEN_LABS_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY || ""
@@ -434,7 +435,14 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
       toast.error("Failed to submit answer. Please try again.")
     }
   }
-
+  const router = useRouter();
+  const handleStartInterview = () => {
+    if (!session?.user?.id) {
+      router.push("/auth");
+    } else {
+      setModalOpen(true)
+    }
+  }
   return (
     <InterviewLayout
       isVideoOn={isVideoOn}
@@ -513,7 +521,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
               Click the button below to begin. You'll be presented with a series of questions to answer.
             </p>
             <Button
-              onClick={() => setModalOpen(true)}
+              onClick={() => handleStartInterview()}
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg px-8 py-3 rounded-full transition-all duration-300 transform hover:scale-105"
             >
               <Play className="mr-2 h-5 w-5" /> Start Interview

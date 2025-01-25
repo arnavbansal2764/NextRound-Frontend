@@ -17,13 +17,13 @@ import {
     type ChartOptions,
 } from "chart.js"
 import { useToast } from "@/hooks/use-toast"
+import type { AnalyzeResponse } from "../../../types/interviews/normal"
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
-interface Interview {
+interface Interview extends AnalyzeResponse {
     id: string
     createdAt: string
-    analysisResult: string
 }
 
 interface CulturalFit {
@@ -75,7 +75,7 @@ export default function DataAnalysis() {
         const allData = [
             ...interviews.map((interview) => ({
                 date: new Date(interview.createdAt),
-                score: Number.parseFloat(interview.analysisResult.match(/Score: (\d+)/)?.[1] || "0"),
+                score: interview.averageScore,
                 type: "Interview",
             })),
             ...culturalFits.map((cf) => ({
@@ -160,16 +160,21 @@ export default function DataAnalysis() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3, delay: 0.1 }}
+            className="w-full max-w-4xl mx-auto"
         >
-            <Card>
+            <Card className="shadow-lg">
                 <CardHeader>
-                    <CardTitle>Performance Analysis</CardTitle>
+                    <CardTitle className="text-2xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600">
+                        Performance Analysis
+                    </CardTitle>
                 </CardHeader>
                 <CardContent>
                     {interviews.length > 0 || culturalFits.length > 0 || practiceInterviews.length > 0 ? (
                         <Line options={options} data={chartData} />
                     ) : (
-                        <p>No data available.</p>
+                        <p className="text-center text-gray-600 py-8">
+                            No data available. Complete some interviews to see your performance analysis!
+                        </p>
                     )}
                 </CardContent>
             </Card>

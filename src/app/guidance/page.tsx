@@ -7,8 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Loader2, BookOpen } from "lucide-react"
-import toast from "react-hot-toast"
+import { Loader2, BookOpen, Sparkles, Target } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 import AnimatedBackground from "@/components/animated-background"
 
 interface Course {
@@ -25,27 +25,27 @@ export default function CareerGuidancePage() {
     const [endGoal, setEndGoal] = useState("")
     const [courses, setCourses] = useState<Course[]>([])
     const [isLoading, setIsLoading] = useState(false)
+    const { toast } = useToast()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
 
-        const promise = axios.post('/api/guidance', { currentStatus, endGoal })
-
-        toast.promise(
-            promise,
-            {
-                loading: 'Analyzing your career path...',
-                success: 'Career guidance ready!',
-                error: 'Failed to analyze. Please try again.',
-            }
-        )
-
         try {
-            const { data } = await promise
+            const { data } = await axios.post<ApiResponse>("/api/guidance", { currentStatus, endGoal })
             setCourses(data.courses)
+            toast({
+                title: "Success",
+                description: "Career guidance is ready!",
+                duration: 3000,
+            })
         } catch (error) {
-            console.error('Error fetching career guidance:', error)
+            console.error("Error fetching career guidance:", error)
+            toast({
+                title: "Error",
+                description: "Failed to analyze. Please try again.",
+                variant: "destructive",
+            })
         } finally {
             setIsLoading(false)
         }
@@ -70,11 +70,11 @@ export default function CareerGuidancePage() {
     }
 
     return (
-        <div className="relative min-h-screen overflow-hidden bg-gray-100 dark:bg-gray-900">
+        <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
             <AnimatedBackground />
             <div className="relative z-10">
                 <motion.div
-                    className="bg-gradient-to-r from-purple-700 to-indigo-800 text-white pt-24 pb-32 relative overflow-hidden"
+                    className="bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-500 text-white pt-24 pb-32 relative overflow-hidden"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.5 }}
@@ -97,6 +97,12 @@ export default function CareerGuidancePage() {
                             Discover your path to success with personalized course recommendations tailored to your aspirations.
                         </motion.p>
                     </div>
+                    <motion.div
+                        className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-b from-transparent to-gray-100 dark:to-gray-900"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.5, delay: 0.6 }}
+                    />
                 </motion.div>
 
                 <div className="container mx-auto px-4 py-16 -mt-24 relative z-20">
@@ -105,10 +111,13 @@ export default function CareerGuidancePage() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5, delay: 0.6 }}
                     >
-                        <Card className="mb-12 shadow-xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg">
+                        <Card className="mb-12 shadow-xl bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg border-t-4 border-purple-500">
                             <CardHeader>
-                                <CardTitle className="text-2xl font-bold text-gray-800 dark:text-white">Your Career Journey</CardTitle>
-                                <CardDescription className="text-gray-600 dark:text-gray-300">
+                                <CardTitle className="text-3xl font-bold text-gray-800 dark:text-white flex items-center">
+                                    <Sparkles className="mr-2 h-6 w-6 text-purple-500" />
+                                    Your Career Journey
+                                </CardTitle>
+                                <CardDescription className="text-gray-600 dark:text-gray-300 text-lg">
                                     Tell us about your current status and future goals
                                 </CardDescription>
                             </CardHeader>
@@ -124,7 +133,7 @@ export default function CareerGuidancePage() {
                                             onChange={(e) => setCurrentStatus(e.target.value)}
                                             placeholder="e.g., Junior Developer"
                                             required
-                                            className="w-full bg-white dark:bg-gray-700"
+                                            className="w-full bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -137,22 +146,25 @@ export default function CareerGuidancePage() {
                                             onChange={(e) => setEndGoal(e.target.value)}
                                             placeholder="e.g., Senior Full Stack Developer"
                                             required
-                                            className="w-full bg-white dark:bg-gray-700"
+                                            className="w-full bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400"
                                         />
                                     </div>
                                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                                         <Button
                                             type="submit"
                                             disabled={isLoading}
-                                            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold py-2 px-4 rounded-md transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-lg"
+                                            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-md transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-lg"
                                         >
                                             {isLoading ? (
                                                 <>
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                                     Analyzing...
                                                 </>
                                             ) : (
-                                                "Get Career Guidance"
+                                                <>
+                                                    <Target className="mr-2 h-5 w-5" />
+                                                    Get Career Guidance
+                                                </>
                                             )}
                                         </Button>
                                     </motion.div>
@@ -163,9 +175,21 @@ export default function CareerGuidancePage() {
 
                     <AnimatePresence>
                         {courses.length > 0 && (
-                            <motion.div key="courses" variants={containerVariants} initial="hidden" animate="visible" exit="hidden">
-                                <h2 className="text-3xl font-bold mb-8 text-gray-800 dark:text-white">Recommended Courses</h2>
-                                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            <motion.div
+                                key="courses"
+                                variants={containerVariants}
+                                initial="hidden"
+                                animate="visible"
+                                exit="hidden"
+                                className="space-y-8"
+                            >
+                                <motion.h2
+                                    className="text-3xl font-bold text-gray-800 dark:text-white text-center"
+                                    variants={itemVariants}
+                                >
+                                    Recommended Courses
+                                </motion.h2>
+                                <motion.div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" variants={containerVariants}>
                                     {courses.map((course, index) => (
                                         <motion.div
                                             key={index}
@@ -173,7 +197,7 @@ export default function CareerGuidancePage() {
                                             whileHover={{ scale: 1.03 }}
                                             whileTap={{ scale: 0.98 }}
                                         >
-                                            <Card className="h-full flex flex-col justify-between shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg">
+                                            <Card className="h-full flex flex-col justify-between shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg border-l-4 border-indigo-500">
                                                 <CardHeader>
                                                     <CardTitle className="text-xl font-semibold text-gray-800 dark:text-white">
                                                         {course.courseName}
@@ -188,14 +212,14 @@ export default function CareerGuidancePage() {
                                                         whileHover={{ x: 5 }}
                                                         transition={{ type: "spring", stiffness: 300 }}
                                                     >
-                                                        <BookOpen className="mr-2 h-4 w-4" />
+                                                        <BookOpen className="mr-2 h-5 w-5" />
                                                         View Course
                                                     </motion.a>
                                                 </CardContent>
                                             </Card>
                                         </motion.div>
                                     ))}
-                                </div>
+                                </motion.div>
                             </motion.div>
                         )}
                     </AnimatePresence>

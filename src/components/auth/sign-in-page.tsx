@@ -1,78 +1,111 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { motion } from "framer-motion";
-import { Github } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useState } from "react"
+import { signIn } from "next-auth/react"
+import { motion } from "framer-motion"
+import { Github } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+
+const backgroundVariants = {
+  initial: {
+    backgroundPosition: "0% 50%",
+  },
+  animate: {
+    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+    transition: {
+      duration: 10,
+      ease: "linear",
+      repeat: Number.POSITIVE_INFINITY,
+    },
+  },
+}
+
+const buttonVariants = {
+  hover: {
+    scale: 1.05,
+    transition: {
+      duration: 0.2,
+      yoyo: Number.POSITIVE_INFINITY,
+    },
+  },
+  tap: {
+    scale: 0.95,
+  },
+}
 
 export default function SignInForm() {
-  const [isLoading, setIsLoading] = useState({ google: false, github: false });
+  const [isLoading, setIsLoading] = useState({ google: false, github: false })
 
   const handleSignIn = async (provider: "google" | "github") => {
-    setIsLoading((prev) => ({ ...prev, [provider]: true }));
+    setIsLoading((prev) => ({ ...prev, [provider]: true }))
     try {
-      await signIn(provider, { callbackUrl: "/" });
+      await signIn(provider, { callbackUrl: "/" })
     } catch (error) {
-      console.error(`${provider} sign in error:`, error);
+      console.error(`${provider} sign in error:`, error)
     }
-    setIsLoading((prev) => ({ ...prev, [provider]: false }));
-  };
+    setIsLoading((prev) => ({ ...prev, [provider]: false }))
+  }
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="w-full max-w-md"
+      className="w-full max-w-md relative"
     >
-      <Card className="w-full">
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 opacity-30 rounded-lg filter blur-xl"
+        variants={backgroundVariants}
+        initial="initial"
+        animate="animate"
+      />
+      <Card className="w-full backdrop-blur-sm bg-white/80 dark:bg-gray-800/80 shadow-xl border-0">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">
-            Welcome Back
-          </CardTitle>
-          <CardDescription className="text-center">
-            Sign in to your account
-          </CardDescription>
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+          >
+            <CardTitle className="text-3xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
+              Welcome Back
+            </CardTitle>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+          >
+            <CardDescription className="text-center text-gray-600 dark:text-gray-300">
+              Sign in to your account
+            </CardDescription>
+          </motion.div>
         </CardHeader>
         <CardContent className="space-y-6">
           <motion.div
             className="space-y-4"
             variants={{
-              hidden: { opacity: 0, y: 20 },
-              visible: { opacity: 1, y: 0 },
+              hidden: { opacity: 0 },
+              visible: { opacity: 1 },
             }}
             initial="hidden"
             animate="visible"
-            transition={{ staggerChildren: 0.1 }}
+            transition={{ staggerChildren: 0.1, delayChildren: 0.3 }}
           >
-            <motion.div
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                visible: { opacity: 1, y: 0 },
-              }}
-            >
+            <motion.div variants={buttonVariants}>
               <Button
                 variant="outline"
-                className="w-full h-12 font-medium border-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="w-full h-12 font-medium border-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-300"
                 onClick={() => handleSignIn("google")}
                 disabled={isLoading.google}
               >
                 {isLoading.google ? (
                   <motion.div
-                    className="w-5 h-5 border-t-2 border-blue-500 border-solid rounded-full animate-spin"
+                    className="w-5 h-5 border-t-2 border-blue-500 border-solid rounded-full"
                     animate={{ rotate: 360 }}
                     transition={{
                       duration: 1,
-                      repeat: Infinity,
+                      repeat: Number.POSITIVE_INFINITY,
                       ease: "linear",
                     }}
                   />
@@ -101,25 +134,20 @@ export default function SignInForm() {
                 )}
               </Button>
             </motion.div>
-            <motion.div
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                visible: { opacity: 1, y: 0 },
-              }}
-            >
+            <motion.div variants={buttonVariants}>
               <Button
                 variant="outline"
-                className="w-full h-12 font-medium border-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="w-full h-12 font-medium border-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-300"
                 onClick={() => handleSignIn("github")}
                 disabled={isLoading.github}
               >
                 {isLoading.github ? (
                   <motion.div
-                    className="w-5 h-5 border-t-2 border-gray-500 border-solid rounded-full animate-spin"
+                    className="w-5 h-5 border-t-2 border-gray-500 border-solid rounded-full"
                     animate={{ rotate: 360 }}
                     transition={{
                       duration: 1,
-                      repeat: Infinity,
+                      repeat: Number.POSITIVE_INFINITY,
                       ease: "linear",
                     }}
                   />
@@ -134,11 +162,25 @@ export default function SignInForm() {
           </motion.div>
         </CardContent>
         <CardFooter>
-          <p className="text-sm text-center w-full text-muted-foreground">
-            By signing in, you agree to our Terms of Service and Privacy Policy.
-          </p>
+          <motion.p
+            className="text-sm text-center w-full text-muted-foreground"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+          >
+            By signing in, you agree to our{" "}
+            <a href="#" className="underline hover:text-purple-600 transition-colors duration-300">
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a href="#" className="underline hover:text-purple-600 transition-colors duration-300">
+              Privacy Policy
+            </a>
+            .
+          </motion.p>
         </CardFooter>
       </Card>
     </motion.div>
-  );
+  )
 }
+

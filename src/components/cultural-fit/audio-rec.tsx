@@ -17,6 +17,7 @@ import EndCultural from "./end-cultural"
 import QuestionReader from "./screen-reader"
 import { sendDataToBackend } from "@/lib/saveData"
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 interface CulturalScore {
     question: string
     refrenceAnswer: string
@@ -383,7 +384,14 @@ const CulturalFitClient = () => {
             }
         }
     };
-
+    const router = useRouter();
+    const handleStartCultural = () => {
+        if (!session?.user?.id) {
+            router.push("/auth");
+        }else{
+            setIsInterviewStarted(true);
+        }
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 text-gray-800">
@@ -478,7 +486,7 @@ const CulturalFitClient = () => {
                             <h2 className="text-4xl font-bold mb-4 text-gray-800 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">Ready for Your Cultural Fit?</h2>
                             <p className="mb-6 text-gray-600 text-lg">Our AI interviewer will assess your cultural fit using cutting-edge analysis.</p>
                             <Button
-                                onClick={() => setIsInterviewStarted(true)}
+                                onClick={() => handleStartCultural()}
                                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg px-8 py-3 rounded-full transition-all duration-300 transform hover:scale-105"
                             >
                                 <Play className="mr-2 h-5 w-5" /> Click to start

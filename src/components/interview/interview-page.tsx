@@ -24,6 +24,8 @@ import FileDropzone from "./file-dropzone"
 import { sendDataToBackend } from "@/lib/saveData"
 import { useSession } from "next-auth/react"
 import type { AnalyzeResponse } from "../../../types/interviews/normal"
+import { synthesizeSpeech } from "@/lib/polly_speech"
+import { useRouter } from "next/navigation"
 const ELEVEN_LABS_VOICE_ID = process.env.NEXT_PUBLIC_ELEVEN_LABS_VOICE_ID || ""
 const ELEVEN_LABS_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY || ""
 enum STEPS {
@@ -84,10 +86,10 @@ export default function InterviewClient() {
     const [creatingInterview, setCreatingInterview] = useState(false)
     const [endInterviewNotification, setEndInterviewNotification] = useState(false)
     const audioRef = useRef<HTMLAudioElement | null>(null)
-    const API_KEY = "sk_a2210098606af4f44a47ad7b98bb3cb3622e9d63571f6231"
-    const VOICE_ID = "iWNf11sz1GrUE4ppxTOL"
     const [resumefile, setResumeFile] = useState<File | null>(null)
+    const [showingFeedback,setShowingFeedback]= useState(false);
     const { data: session } = useSession()
+    const router = useRouter()
     useEffect(() => {
         const initStream = async () => {
             try {
@@ -144,20 +146,17 @@ export default function InterviewClient() {
             client.close()
             setClient(null)
 
-            // if (session?.user?.id) {
-            //     const saveData = await sendDataToBackend({
-            //         userId: session.user.id,
-            //         interviewData: analysisResult,
-            //         resumeUrl: resume,
-            //     });
-            //     console.log('Interview data sent to backend successfully', saveData);
-            // } else {
-            //     console.error('User not authenticated');
-            // }
+            if (session?.user?.id) {
+                const saveData = await sendDataToBackend(session.user.id, analysisResult,"interview",resume);
+                console.log('Interview data sent to backend successfully', saveData);
+            } else {
+                console.error('User not authenticated');
+            }
         } catch (error) {
             console.error("Error ending interview:", error)
             toast.error("Failed to end interview. Please try again.")
         } finally {
+            setShowingFeedback(true);
             setEndInterviewNotification(false)
         }
     }
@@ -178,35 +177,10 @@ export default function InterviewClient() {
 
     const speakQuestion = async (question: string) => {
         try {
-            setQuestionRead(true)
-            const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_LABS_VOICE_ID}`, {
-                method: "POST",
-                headers: {
-                    Accept: "audio/mpeg",
-                    "xi-api-key": ELEVEN_LABS_API_KEY,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    text: question,
-                    model_id: "eleven_multilingual_v2",
-                    voice_settings: {
-                        stability: 0.3,
-                        similarity_boost: 0.9,
-                    },
-                }),
-            })
+            const audioUrl = await synthesizeSpeech(question);
 
-            if (!response.ok) {
-                throw new Error("Failed to convert text to speech")
-            }
-
-            const audioBlob = await response.blob()
-            const audioUrl = URL.createObjectURL(audioBlob)
-
-            if (audioRef.current) {
-                audioRef.current.src = audioUrl
-                await audioRef.current.play()
-            }
+            const audio = new Audio(audioUrl!);
+            audio.play();
         } catch (error) {
             console.error("Error generating speech:", error)
             toast.error("Failed to generate speech. Please try again.")
@@ -221,9 +195,7 @@ export default function InterviewClient() {
             if (isSpeakerOn) {
                 audioRef.current.pause()
                 audioRef.current.currentTime = 0
-            } else {
-                speakQuestion(currentQuestion)
-            }
+            } 
         }
     }
 
@@ -521,7 +493,13 @@ export default function InterviewClient() {
             toast.error("Failed to submit answer. Please try again.")
         }
     }, [client, currentQuestion, transcript, questionNumber, totalQuestions])
-
+    const handleStartInterview = () => {
+        if(!session?.user?.id){
+            router.push("/auth");
+        }else{
+            setModalOpen(true)
+        }
+    }
     return (
         <InterviewLayout
             isVideoOn={isVideoOn}
@@ -584,7 +562,7 @@ export default function InterviewClient() {
             {isAnalyzing && <AnalyzingResponseAnimation />}
             {endInterviewNotification && <EndInterview />}
             <AnimatePresence mode="wait">
-                {!isInterviewStarted && !loading.isOpen ? (
+                {!isInterviewStarted && !loading.isOpen && !showingFeedback? (
                     <motion.div
                         key="start"
                         initial={{ opacity: 0, y: 20 }}
@@ -600,7 +578,7 @@ export default function InterviewClient() {
                             Click the button below to begin. You'll be presented with a series of questions to answer.
                         </p>
                         <Button
-                            onClick={() => setModalOpen(true)}
+                            onClick={() => handleStartInterview()}
                             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-lg px-8 py-3 rounded-full transition-all duration-300 transform hover:scale-105"
                         >
                             <Play className="mr-2 h-5 w-5" /> Start Interview
@@ -679,9 +657,8 @@ export default function InterviewClient() {
                         </div>
                     </motion.div>
                 )}
-                {feedback && <FeedbackComponent feedback={feedback as AnalyzeResponse} />}
-                {/* <FeedbackComponent feedback={example as AnalyzeResponse} /> */}
             </AnimatePresence>
+            {feedback && <FeedbackComponent feedback={feedback as AnalyzeResponse} />}
 
             <Modal
                 isOpen={modalOpen}

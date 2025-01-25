@@ -38,20 +38,10 @@ model Cultural {
   id     String @id @default(auto()) @map("_id") @db.ObjectId
   userId String @db.ObjectId
   user   User   @relation(fields: [userId], references: [id])
-
-  // Overall analysis result
   result String
-
-  // Primary traits data - array of segments with emotions
-  primaryTraits Json[] // Maps to primary_traits: Segment[]
-
-  // Secondary traits data - array of behavioral traits
-  segmentSecondaryTraits Json[] // Maps to segment_secondary_traits: SegmentSecondaryTrait[]
-
-  // Scores data
-  scores Json // Contains totalScore, averageScore, and array of CulturalScore
-
-  // Metadata
+  primaryTraits Json[] 
+  segmentSecondaryTraits Json[]
+  scores Json 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

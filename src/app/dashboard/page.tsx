@@ -7,7 +7,7 @@ import UserProfile from '@/components/dashboard/user-profile'
 import DataAnalysis from '@/components/dashboard/data-analysis'
 import InterviewHistory from '@/components/dashboard/interview-history'
 import CulturalFitHistory from '@/components/dashboard/cultural-fit-history'
-import PracticeInterviewHistory from '@/components/dashboard/practice-interview'
+import PracticeInterviewHistory from '@/components/dashboard/practice-interview-history'
 
 export default async function Dashboard() {
   const session = await getServerSession(authOptions)

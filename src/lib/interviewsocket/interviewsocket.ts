@@ -61,7 +61,7 @@ export class InterviewSocketClient {
         this.socket.onmessage = (evt) => {
           const data = JSON.parse(evt.data);
           if (data.action === "analyze") {
-            data.status === "ok" ? resolve(data.analysis) : reject(data.message);
+            data.status === "ok" ? resolve(data) : reject(data.message);
           }
         };
       });

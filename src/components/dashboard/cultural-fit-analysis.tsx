@@ -33,7 +33,6 @@ const COLORS = ["#4299E1", "#48BB78", "#ED8936", "#9F7AEA", "#F56565"]
 
 const CulturalFitAnalysis: React.FC<{ data: CulturalFitAnalysisProps }> = ({ data }) => {
     const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({})
-    const [showFullText, setShowFullText] = useState(false)
     const [expandedTraits, setExpandedTraits] = useState<{ [key: string]: boolean }>({})
 
     const toggleCategory = (categoryKey: string) => {
@@ -129,49 +128,6 @@ const CulturalFitAnalysis: React.FC<{ data: CulturalFitAnalysisProps }> = ({ dat
         ))
     }
 
-    const cleanText = (text: string) => {
-        const sections = text.split("\n\n")
-        const visibleSections = showFullText ? sections : sections.slice(0, 2)
-
-        return (
-            <>
-                {visibleSections.map((section, index) => {
-                    const [title, ...content] = section.split("\n")
-                    return (
-                        <motion.div
-                            key={index}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: index * 0.1 }}
-                            className="mb-4"
-                            onClick={() => setShowFullText(true)}
-                        >
-                            <h3 className="text-lg font-semibold mb-2">{title.replace(/\*\*/g, "")}</h3>
-                            {content.map((paragraph, pIndex) => (
-                                <p key={pIndex} className="mb-2 leading-relaxed">
-                                    {paragraph.trim()}
-                                </p>
-                            ))}
-                        </motion.div>
-                    )
-                })}
-                {!showFullText && sections.length > 2 && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.5, delay: 0.3 }}
-                        className="relative"
-                    >
-                        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white to-transparent" />
-                        <Button variant="link" className="mt-2">
-                            Read more
-                        </Button>
-                    </motion.div>
-                )}
-            </>
-        )
-    }
-
     const CustomTooltip = ({ active, payload }: any) => {
         if (active && payload && payload.length) {
             return (
@@ -199,14 +155,6 @@ const CulturalFitAnalysis: React.FC<{ data: CulturalFitAnalysisProps }> = ({ dat
             className="space-y-6"
         >
             <Card className="bg-white shadow-lg border-0">
-                <CardHeader>
-                    <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        Cultural Fit Analysis
-                    </CardTitle>
-                    <CardDescription className="text-gray-600">
-                        AI-Powered Evaluation of Cultural Alignment and Behavioral Traits
-                    </CardDescription>
-                </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-[300px] pr-4">
                         <div className="prose prose-gray max-w-none"><ReactMarkdown>{data.result}</ReactMarkdown> </div>
