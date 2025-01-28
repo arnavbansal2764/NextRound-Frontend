@@ -44,4 +44,9 @@ export type ResponseFromAi = {
     type:"SCRAPED_JOB",payload:{
         jobs:string[];
     }
+} |{
+    type: "ENHANCER", payload: {
+        content:string;
+        status_code:number;
+    }
 }

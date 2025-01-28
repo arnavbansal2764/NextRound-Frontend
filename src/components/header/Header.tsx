@@ -35,6 +35,7 @@ export default function Header() {
     { name: 'Cultural Fit', href: '/cultural-fit' },
     { name: 'Practice', href: '/practice' },
     { name: 'Guidance', href: '/guidance' },
+    { name: 'Resume Enhancer', href: '/resume-enhancer' }
   ]
 
   return (

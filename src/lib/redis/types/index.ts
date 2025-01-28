@@ -6,6 +6,7 @@ export const GET_QUESTIONS = 'GET_QUESTIONS';
 export const GET_CULTURAL_FIT = 'GET_CULTURAL_FIT';
 export const GET_CHECKPOINTS = 'GET_CHECKPOINTS';
 export const GET_JOBS_SCRAPED = 'GET_JOBS_SCRAPED'
+export const GET_ENHANCER = 'GET_ENHANCER'
 
 export type Score = {
     entity_match_score: number;

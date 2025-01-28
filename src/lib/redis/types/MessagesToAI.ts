@@ -8,6 +8,7 @@ import {
   GET_RESUME_BUILD,
   GET_SIMILARITY_SCORE,
   Question_Transcript,
+  GET_ENHANCER
 } from ".";
 
 export type MessagesToAI =
@@ -72,5 +73,11 @@ export type MessagesToAI =
         role:string;
         location:string;
         years:string;
+      }
+    } |{
+      type: typeof GET_ENHANCER;
+      data:{
+        resumeUrl : string;
+        jobDescription: string;
       }
     }

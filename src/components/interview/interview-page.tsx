@@ -26,8 +26,6 @@ import { useSession } from "next-auth/react"
 import type { AnalyzeResponse } from "../../../types/interviews/normal"
 import { synthesizeSpeech } from "@/lib/polly_speech"
 import { useRouter } from "next/navigation"
-const ELEVEN_LABS_VOICE_ID = process.env.NEXT_PUBLIC_ELEVEN_LABS_VOICE_ID || ""
-const ELEVEN_LABS_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY || ""
 enum STEPS {
     RESUME = 0,
     LEVEL = 1,
@@ -40,24 +38,6 @@ const levels = [
     { text: "Senior Positions", icon: Trophy },
 ]
 
-const example = {
-    status: "ok",
-    code: 200,
-    action: "analyze",
-    analysis:
-        "**Overall Performance Analysis**\n\nBased on the provided performance review and resume, here is an overall analysis of your performance.\n\n**Strengths:**\n\n1. **Technical Skills**: You have demonstrated exceptional skills in programming languages such as C++, Python, and JavaScript. Your proficiency in web development frameworks like NextJS, ReactJS, and MongoDB is also noteworthy.\n2. **Problem-Solving**: Your ability to design and develop complex systems, such as the NextRound platform, demonstrates your problem-solving skills and attention to detail.\n3. **Cloud Computing**: Your experience with cloud services like AWS, Docker, and Vercel showcases your understanding of cloud computing and scalability.\n4. **Team Leadership**: Your leadership roles in organizing events and managing teams at PEC ACM and the International Conference on Design and Manufacturing demonstrate your leadership skills and ability to work with others.\n\n**Areas for Improvement:**\n\n1. **Communication Skills**: While your technical skills are impressive, there is room for improvement in your communication skills. Your responses to questions, such as the one about scalability, could be more precise and detailed.\n2. **Scalability Understanding**: Although you have designed a scalable architecture, your understanding of scalability can be improved. You could benefit from studying and exploring more advanced scalability strategies and tools.\n3. **Real-World Applications**: While your projects demonstrate technical skills, their real-world applications could be more clearly demonstrated. This could enhance your understanding of the impact of your work.\n4. **Code Quality**: Although you have developed complex systems, there is no explicit mention of code quality. You should strive to maintain high standards of code quality, including documentation, testing, and code organization.\n\n**Constructive Feedback:**\n\n1. **Scalability Question Response**: For the scalability question, you could have responded with a more detailed explanation, such as:\n\n\"To handle three or four multiple users at a point might seem trivial, but it's a step in building a system that can scale to handle thousands of concurrent users. For that, we would need to leverage load balancing techniques, optimize database queries, and implement caching mechanisms to improve application responsiveness. Additionally, we would need to monitor and analyze system performance to identify bottlenecks and optimize accordingly. By addressing these concerns, we can ensure that the NextRound platform's backend system can handle a large number of users efficiently.\"\n\n2. **Improving Code Quality**: When developing complex systems, you should focus on maintaining high standards of code quality. This includes:\n\n* Writing clean, readable, and well-organized code\n* Documenting code and processes thoroughly\n* Conducting thorough testing and debugging to ensure code reliability\n* Using best practices for object-oriented programming (OOP) and modular design\n\n3. **Enhancing Real-World Applications**: When developing projects, think about how they can be applied in real-world scenarios. This could include:\n\n* Identifying potential use cases and scenarios where your project can be applied\n* Conducting user research to understand their needs and pain points\n* Designing your project with user-friendliness and accessibility in mind\n* Highlighting the benefits of your project, such as increased efficiency or cost savings\n\n**Recommendations:**\n\n1. Continue to develop your technical skills by exploring new programming languages, frameworks, and tools.\n2. Enhance your understanding of scalability by researching and implementing advanced scalability strategies and tools.\n3. Focus on improving your code quality by following best practices for OOP and modular design, and by conducting thorough testing and debugging.\n4. Consider taking courses or attending workshops on communication skills and presentation to improve your ability to articulate your thoughts and ideas to others.",
-    scores: [
-        {
-            question: "What is the primary concern for scalability in the design of the NextRound platform's backend system?",
-            answer: "To handle three or four multiple users at a point.",
-            refrenceAnswer:
-                "Scalability is a primary concern for the design of the NextRound platform's backend system as it needs to support up to 1000 concurrent users seamlessly. To address this, I designed a scalable architecture using Docker to ensure that the system can handle a large volume of users without any performance degradation. This scalability enables users to access the platform without any delays or errors, ensuring a smooth user experience.",
-            score: 2.25,
-        },
-    ],
-    averageScore: 2.25,
-    totalScore: 2.25,
-}
 export default function InterviewClient() {
     const [currentTime, setCurrentTime] = useState(new Date())
     const [isVideoOn, setIsVideoOn] = useState(true)

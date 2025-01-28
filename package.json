@@ -58,6 +58,7 @@
     "react-particles": "^2.12.2",
     "react-simple-code-editor": "^0.14.1",
     "react-syntax-highlighter": "^15.6.1",
+    "react-to-pdf": "^1.0.1",
     "react-ts-typewriter": "^0.1.8-b",
     "recharts": "^2.15.0",
     "redis": "^4.7.0",
