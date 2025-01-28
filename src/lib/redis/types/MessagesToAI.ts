@@ -8,7 +8,8 @@ import {
   GET_RESUME_BUILD,
   GET_SIMILARITY_SCORE,
   Question_Transcript,
-  GET_ENHANCER
+  GET_ENHANCER,
+  GET_COLD_APPROACH
 } from ".";
 
 export type MessagesToAI =
@@ -79,5 +80,12 @@ export type MessagesToAI =
       data:{
         resumeUrl : string;
         jobDescription: string;
+      }
+    } |{
+      type: typeof GET_COLD_APPROACH;
+      data:{
+        user_info : string;
+        job_description : string;
+        approach_platform : string;
       }
     }

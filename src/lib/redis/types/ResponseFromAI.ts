@@ -49,4 +49,9 @@ export type ResponseFromAi = {
         content:string;
         status_code:number;
     }
+} |{
+    type : "COLD_APPROACH", payload: {
+        content:string;
+        status_code:number;
+    }
 }
