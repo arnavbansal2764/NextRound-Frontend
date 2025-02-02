@@ -190,7 +190,7 @@ const CulturalFitClient = () => {
     const [questionRead, setQuestionRead] = useState(false);
     const [endInterviewNotification, setEndInterviewNotification] = useState(false)
     const [fileName, setFileName] = useState<string>("")
-    const [company,setCompany] = useState("")
+    const avatarVideoRef = useRef<HTMLVideoElement>(null)
     useEffect(() => {
         const randomQuestion = getRandomItemFromArray(questionsPool);
         setQuestion(randomQuestion);
@@ -206,20 +206,11 @@ const CulturalFitClient = () => {
 
     }, [])
     const { data: session } = useSession()
-    const speakQuestion = (question: string) => {
-        if (!questionRead && question && speechSynthesisRef.current && isSpeakerOn) {
-            const utterance = new SpeechSynthesisUtterance(question);
-            speechSynthesisRef.current.speak(utterance);
-            setQuestionRead(true);
-        }
-    }
 
     const toggleSpeaker = () => {
         setIsSpeakerOn(!isSpeakerOn)
         if (isSpeakerOn) {
             speechSynthesisRef.current?.cancel()
-        } else {
-            speakQuestion(question)
         }
     }
     const startVideo = async () => {
@@ -453,11 +444,15 @@ const CulturalFitClient = () => {
                         transition={{ duration: 0.5 }}
                         className="relative aspect-video bg-white rounded-lg overflow-hidden shadow-lg flex justify-center"
                     >
-                        <img
-                            src="https://www.shutterstock.com/image-vector/default-avatar-profile-icon-vector-600nw-1745180411.jpg"
-                            alt="Interviewer"
-                            className="w-fit h-full object-cover"
-                        />
+                        {questionRead ? (
+                            <video ref={avatarVideoRef} src="/ai_avatar.mp4" className="w-full h-full object-cover" autoPlay muted />
+                        ) : (
+                            <img
+                                src="https://www.shutterstock.com/image-vector/default-avatar-profile-icon-vector-600nw-1745180411.jpg"
+                                alt="Interviewer"
+                                className="w-fit h-full object-cover"
+                            />
+                        )}
                         <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/30 px-2 py-1 rounded-full">
                             <Avatar className="h-8 w-8 ring-2 ring-white">
                                 <AvatarImage src="/placeholder.svg?height=32&width=32&text=AI" />
@@ -540,7 +535,7 @@ const CulturalFitClient = () => {
                                 >
                                     <h2 className="text-2xl font-semibold mb-4 text-gray-800">
                                         <Typewriter text={question as string} />
-                                        <QuestionReader question={question} />
+                                        <QuestionReader question={question} questionRead={questionRead} setQuestionRead={setQuestionRead}/>
                                     </h2>
 
                                     <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">

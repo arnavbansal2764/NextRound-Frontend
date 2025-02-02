@@ -92,6 +92,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [isSaving, setIsSaving] = useState(false);
   const { data: session } = useSession()
+  const avatarVideoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
     const initStream = async () => {
@@ -461,11 +462,15 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
           transition={{ duration: 0.5 }}
           className="relative aspect-video bg-white rounded-lg overflow-hidden shadow-lg flex justify-center"
         >
-          <img
-            src="https://www.shutterstock.com/image-vector/default-avatar-profile-icon-vector-600nw-1745180411.jpg"
-            alt="Interviewer"
-            className="w-fit h-full object-cover"
-          />
+          {questionRead ? (
+            <video ref={avatarVideoRef} src="/ai_avatar.mp4" className="w-full h-full object-cover" autoPlay muted />
+          ) : (
+            <img
+              src="https://www.shutterstock.com/image-vector/default-avatar-profile-icon-vector-600nw-1745180411.jpg"
+              alt="Interviewer"
+              className="w-fit h-full object-cover"
+            />
+          )}
           <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/30 px-2 py-1 rounded-full">
             <Avatar className="h-8 w-8 ring-2 ring-white">
               <AvatarImage src="/placeholder.svg?height=32&width=32&text=AI" />
@@ -539,7 +544,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
             <Progress value={progress} className="w-full mb-6" />
             <h2 className="text-xl font-semibold mb-4 text-gray-800">
               <Typewriter text={currentQuestion} />
-              <QuestionReader question={currentQuestion} />
+              <QuestionReader question={currentQuestion} questionRead={questionRead} setQuestionRead={setQuestionRead}/>
             </h2>
             {transcript && (
               <motion.div

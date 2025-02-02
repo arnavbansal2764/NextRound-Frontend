@@ -1,11 +1,10 @@
 "use client"
-import type React from "react"
-import { useState, useEffect, useRef, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Mic, MicOff, Send, Play, GraduationCap, Briefcase, Trophy, ChevronUp, ChevronDown } from "lucide-react"
+import { Mic, MicOff, Send, Play, GraduationCap, Briefcase, Trophy } from "lucide-react"
 import Typewriter from "react-ts-typewriter"
 import FeedbackComponent from "./feedback-component"
 import QuestionReader from "./screen-reader"
@@ -24,8 +23,8 @@ import FileDropzone from "./file-dropzone"
 import { sendDataToBackend } from "@/lib/saveData"
 import { useSession } from "next-auth/react"
 import type { AnalyzeResponse } from "../../../types/interviews/normal"
-import { synthesizeSpeech } from "@/lib/polly_speech"
 import { useRouter } from "next/navigation"
+import { useRef } from "react"
 enum STEPS {
     RESUME = 0,
     LEVEL = 1,
@@ -67,9 +66,11 @@ export default function InterviewClient() {
     const [endInterviewNotification, setEndInterviewNotification] = useState(false)
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const [resumefile, setResumeFile] = useState<File | null>(null)
-    const [showingFeedback,setShowingFeedback]= useState(false);
+    const [showingFeedback, setShowingFeedback] = useState(false)
     const { data: session } = useSession()
     const router = useRouter()
+    const avatarVideoRef = useRef<HTMLVideoElement>(null)
+
     useEffect(() => {
         const initStream = async () => {
             try {
@@ -100,14 +101,11 @@ export default function InterviewClient() {
         }
     }, [])
 
+    
     useEffect(() => {
-        if (currentQuestion && isSpeakerOn) {
-            speakQuestion(currentQuestion)
-        }
-    }, [currentQuestion, isSpeakerOn])
-    useEffect(() => {
-        console.log("Feedback state updated:", feedback);
-    }, [feedback]);
+        console.log("Feedback state updated:", feedback)
+    }, [feedback])
+
     const endInterview = async () => {
         if (!client) {
             console.error("Interview client not initialized")
@@ -121,22 +119,22 @@ export default function InterviewClient() {
             const analysisResult: AnalyzeResponse = await client.analyze()
             console.log(analysisResult)
             setFeedback(analysisResult as AnalyzeResponse)
-            console.log("Set feedback",feedback)
+            console.log("Set feedback", feedback)
             await client.stopInterview()
             client.close()
             setClient(null)
 
             if (session?.user?.id) {
-                const saveData = await sendDataToBackend(session.user.id, analysisResult,"interview",resume);
-                console.log('Interview data sent to backend successfully', saveData);
+                const saveData = await sendDataToBackend(session.user.id, analysisResult, "interview", resume)
+                console.log("Interview data sent to backend successfully", saveData)
             } else {
-                console.error('User not authenticated');
+                console.error("User not authenticated")
             }
         } catch (error) {
             console.error("Error ending interview:", error)
             toast.error("Failed to end interview. Please try again.")
         } finally {
-            setShowingFeedback(true);
+            setShowingFeedback(true)
             setEndInterviewNotification(false)
         }
     }
@@ -155,27 +153,13 @@ export default function InterviewClient() {
         }
     }
 
-    const speakQuestion = async (question: string) => {
-        try {
-            const audioUrl = await synthesizeSpeech(question);
-
-            const audio = new Audio(audioUrl!);
-            audio.play();
-        } catch (error) {
-            console.error("Error generating speech:", error)
-            toast.error("Failed to generate speech. Please try again.")
-        } finally {
-            setQuestionRead(false)
-        }
-    }
-
     const toggleSpeaker = () => {
         setIsSpeakerOn(!isSpeakerOn)
         if (audioRef.current) {
             if (isSpeakerOn) {
                 audioRef.current.pause()
                 audioRef.current.currentTime = 0
-            } 
+            }
         }
     }
 
@@ -474,9 +458,9 @@ export default function InterviewClient() {
         }
     }, [client, currentQuestion, transcript, questionNumber, totalQuestions])
     const handleStartInterview = () => {
-        if(!session?.user?.id){
-            router.push("/auth");
-        }else{
+        if (!session?.user?.id) {
+            router.push("/auth")
+        } else {
             setModalOpen(true)
         }
     }
@@ -498,11 +482,15 @@ export default function InterviewClient() {
                     transition={{ duration: 0.5 }}
                     className="relative aspect-video bg-white rounded-lg overflow-hidden shadow-lg flex justify-center"
                 >
-                    <img
-                        src="https://www.shutterstock.com/image-vector/default-avatar-profile-icon-vector-600nw-1745180411.jpg"
-                        alt="Interviewer"
-                        className="w-fit h-full object-cover"
-                    />
+                    {questionRead ? (
+                        <video ref={avatarVideoRef} src="/ai_avatar.mp4" className="w-full h-full object-cover" autoPlay muted />
+                    ) : (
+                        <img
+                            src="https://www.shutterstock.com/image-vector/default-avatar-profile-icon-vector-600nw-1745180411.jpg"
+                            alt="Interviewer"
+                            className="w-fit h-full object-cover"
+                        />
+                    )}
                     <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/30 px-2 py-1 rounded-full">
                         <Avatar className="h-8 w-8 ring-2 ring-white">
                             <AvatarImage src="/placeholder.svg?height=32&width=32&text=AI" />
@@ -542,7 +530,7 @@ export default function InterviewClient() {
             {isAnalyzing && <AnalyzingResponseAnimation />}
             {endInterviewNotification && <EndInterview />}
             <AnimatePresence mode="wait">
-                {!isInterviewStarted && !loading.isOpen && !showingFeedback? (
+                {!isInterviewStarted && !loading.isOpen && !showingFeedback ? (
                     <motion.div
                         key="start"
                         initial={{ opacity: 0, y: 20 }}
@@ -575,7 +563,7 @@ export default function InterviewClient() {
                         <Progress value={progress} className="w-full mb-6" />
                         <h2 className="text-xl font-semibold mb-4 text-gray-800">
                             <Typewriter text={currentQuestion} />
-                            <QuestionReader question={currentQuestion} />
+                            <QuestionReader question={currentQuestion} questionRead={questionRead} setQuestionRead={setQuestionRead} />
                         </h2>
                         {transcript && (
                             <motion.div
@@ -597,7 +585,7 @@ export default function InterviewClient() {
                                     animate={{ opacity: 1 }}
                                     transition={{ duration: 0.5, delay: 0.3 }}
                                 >
-                                <Typewriter text={transcript} />
+                                    <Typewriter text={transcript} />
                                 </motion.p>
                                 <motion.div
                                     className="absolute bottom-2 right-2 w-16 h-16 opacity-10"
