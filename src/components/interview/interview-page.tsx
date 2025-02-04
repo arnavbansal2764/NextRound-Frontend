@@ -101,11 +101,21 @@ export default function InterviewClient() {
         }
     }, [])
 
-    
+
     useEffect(() => {
         console.log("Feedback state updated:", feedback)
     }, [feedback])
 
+    useEffect(() => {
+        if (questionRead && avatarVideoRef.current) {
+            const playPromise = avatarVideoRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error =>
+                    console.error("Error playing speaking video:", error)
+                );
+            }
+        }
+    }, [questionRead]);
     const endInterview = async () => {
         if (!client) {
             console.error("Interview client not initialized")
@@ -221,14 +231,8 @@ export default function InterviewClient() {
                 const audioFile = new File([audioBlob], "audio.wav", { type: "audio/wav" })
                 setIsAnalyzing(true)
                 try {
-                    const audioUrl = await uploadAudio(audioFile)
-
-                    if (audioUrl !== "Error Uploading Audio") {
-                        const transcriptText = await getTranscript(audioUrl)
-                        setTranscript(transcriptText)
-                    } else {
-                        toast.error("Error uploading audio")
-                    }
+                    const transcriptText = await getTranscript(audioFile)
+                    setTranscript(transcriptText)
                 } catch (error) {
                     console.error("Error processing audio:", error)
                     toast.error("Error processing audio")
@@ -243,32 +247,6 @@ export default function InterviewClient() {
             // Start checking for silence
             requestAnimationFrame(checkSilence)
         })
-    }
-
-    const uploadAudio = async (file: File) => {
-        try {
-            const fileName = `${Date.now()}-${file.name}` // Generate unique file name
-            const fileType = file.type
-
-            const res = await axios.post("/api/s3/upload", { fileName, fileType })
-            const { uploadUrl } = await res.data
-
-            if (!uploadUrl) {
-                throw new Error("Failed to get upload URL")
-            }
-
-            const upload = await axios.put(uploadUrl, file)
-            if (upload.status !== 200) {
-                throw new Error("Failed to upload audio")
-            }
-
-            const audioUrl = uploadUrl.split("?")[0]
-            return audioUrl
-        } catch (error) {
-            console.error("Upload failed:", error)
-            setError("Failed to upload audio. Please try again.")
-            return ""
-        }
     }
     const uploadResume = async (file: File) => {
         try {
@@ -482,15 +460,26 @@ export default function InterviewClient() {
                     transition={{ duration: 0.5 }}
                     className="relative aspect-video bg-white rounded-lg overflow-hidden shadow-lg flex justify-center"
                 >
-                    {questionRead ? (
-                        <video ref={avatarVideoRef} src="/ai_avatar.mp4" className="w-full h-full object-cover" autoPlay muted />
-                    ) : (
-                        <img
-                            src="https://www.shutterstock.com/image-vector/default-avatar-profile-icon-vector-600nw-1745180411.jpg"
-                            alt="Interviewer"
-                            className="w-fit h-full object-cover"
+                    <div className="relative w-full h-full">
+                        <video
+                            ref={avatarVideoRef}
+                            src="/ai_avatar_speaking.mp4"
+                            className={`absolute w-full h-full object-cover transition-opacity duration-500 ${questionRead ? "opacity-100" : "opacity-0"
+                                }`}
+                            autoPlay
+                            muted
                         />
-                    )}
+                        <video
+                            ref={avatarVideoRef}
+                            src="/ai_avatar_stop.mp4"
+                            className={`absolute w-full h-full object-cover transition-opacity duration-500 ${questionRead ? "opacity-0" : "opacity-100"
+                                }`}
+                            autoPlay
+                            muted
+                            loop
+                        />
+                    </div>
+                
                     <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/30 px-2 py-1 rounded-full">
                         <Avatar className="h-8 w-8 ring-2 ring-white">
                             <AvatarImage src="/placeholder.svg?height=32&width=32&text=AI" />

@@ -125,11 +125,11 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
   }, [])
 
   const endInterview = async () => {
-    if(!session?.user?.id){
+    if (!session?.user?.id) {
       toast.error("Not authorized to save interview data");
       return;
     }
-    if (!client ) {
+    if (!client) {
       toast.error("Not authorized or client not initialized");
       return;
     }
@@ -242,7 +242,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
               setIsRecording(false);
               isSilenceDetected = true;
               mediaRecorder.stop();
-              
+
               stream.getTracks().forEach((track) => track.stop());
               audioContext.close();
             }
@@ -462,15 +462,25 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
           transition={{ duration: 0.5 }}
           className="relative aspect-video bg-white rounded-lg overflow-hidden shadow-lg flex justify-center"
         >
-          {questionRead ? (
-            <video ref={avatarVideoRef} src="/ai_avatar.mp4" className="w-full h-full object-cover" autoPlay muted />
-          ) : (
-            <img
-              src="https://www.shutterstock.com/image-vector/default-avatar-profile-icon-vector-600nw-1745180411.jpg"
-              alt="Interviewer"
-              className="w-fit h-full object-cover"
+          <div className="relative w-full h-full">
+            <video
+              ref={avatarVideoRef}
+              src="/ai_avatar_speaking.mp4"
+              className={`absolute w-full h-full object-cover transition-opacity duration-500 ${questionRead ? "opacity-100" : "opacity-0"
+                }`}
+              autoPlay
+              muted
             />
-          )}
+            <video
+              ref={avatarVideoRef}
+              src="/ai_avatar_stop.mp4"
+              className={`absolute w-full h-full object-cover transition-opacity duration-500 ${questionRead ? "opacity-0" : "opacity-100"
+                }`}
+              autoPlay
+              muted
+              loop
+            />
+          </div>
           <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/30 px-2 py-1 rounded-full">
             <Avatar className="h-8 w-8 ring-2 ring-white">
               <AvatarImage src="/placeholder.svg?height=32&width=32&text=AI" />
@@ -533,7 +543,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
             </Button>
           </motion.div>
         ) : (
-          
+
           <motion.div
             key="interview"
             initial={{ opacity: 0, y: 20 }}
@@ -544,7 +554,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
             <Progress value={progress} className="w-full mb-6" />
             <h2 className="text-xl font-semibold mb-4 text-gray-800">
               <Typewriter text={currentQuestion} />
-              <QuestionReader question={currentQuestion} questionRead={questionRead} setQuestionRead={setQuestionRead}/>
+              <QuestionReader question={currentQuestion} questionRead={questionRead} setQuestionRead={setQuestionRead} />
             </h2>
             {transcript && (
               <motion.div
@@ -597,10 +607,10 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
                   placeholder="Enter your code here..."
                   className="w-full h-40"
                 />
-              ) }
+              )}
             </div>
 
-            
+
             <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
               <div className="flex items-center space-x-4">
                 <Button
@@ -628,7 +638,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
             </div>
           </motion.div>
         )}
-        
+
 
       </AnimatePresence>)}
       {feedback && <InterviewFeedback analysis={feedback.analysis} averageScore={feedback.averageScore} scores={feedback.scores} totalScore={feedback.totalScore} />}

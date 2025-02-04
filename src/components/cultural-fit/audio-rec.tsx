@@ -243,7 +243,7 @@ const CulturalFitClient = () => {
                     analyser.fftSize = 256; // Adjust FFT size
                     const dataArray = new Uint8Array(analyser.fftSize);
 
-                    let silenceStart:any = null;
+                    let silenceStart: any = null;
                     let isSilenceDetected = false;
 
                     audioRef.current = mediaRecorder;
@@ -389,7 +389,7 @@ const CulturalFitClient = () => {
             const analysisResult: CulturalFitAnalysisProps = response.data; // Assuming response.data is already in the correct format
             setAnalysisResult(analysisResult); // Set the analysis result
             setError(null); // Clear any previous error
-            
+
             const saveData = await sendDataToBackend(`${session?.user.id}`, analysisResult, 'cultural');
             console.log('Cultural fit data saved successfully:', saveData);
         } catch (error) {
@@ -407,7 +407,7 @@ const CulturalFitClient = () => {
     const handleStartCultural = () => {
         if (!session?.user?.id) {
             router.push("/auth");
-        }else{
+        } else {
             setIsInterviewStarted(true);
         }
     }
@@ -444,15 +444,27 @@ const CulturalFitClient = () => {
                         transition={{ duration: 0.5 }}
                         className="relative aspect-video bg-white rounded-lg overflow-hidden shadow-lg flex justify-center"
                     >
-                        {questionRead ? (
-                            <video ref={avatarVideoRef} src="/ai_avatar.mp4" className="w-full h-full object-cover" autoPlay muted />
-                        ) : (
-                            <img
-                                src="https://www.shutterstock.com/image-vector/default-avatar-profile-icon-vector-600nw-1745180411.jpg"
-                                alt="Interviewer"
-                                className="w-fit h-full object-cover"
+
+                        <div className="relative w-full h-full">
+                            <video
+                                ref={avatarVideoRef}
+                                src="/ai_avatar_speaking.mp4"
+                                className={`absolute w-full h-full object-cover transition-opacity duration-500 ${questionRead ? "opacity-100" : "opacity-0"
+                                    }`}
+                                autoPlay
+                                muted
                             />
-                        )}
+                            <video
+                                ref={avatarVideoRef}
+                                src="/ai_avatar_stop.mp4"
+                                className={`absolute w-full h-full object-cover transition-opacity duration-500 ${questionRead ? "opacity-0" : "opacity-100"
+                                    }`}
+                                autoPlay
+                                muted
+                                loop
+                            />
+                        </div>
+
                         <div className="absolute bottom-4 left-4 flex items-center space-x-2 bg-black/30 px-2 py-1 rounded-full">
                             <Avatar className="h-8 w-8 ring-2 ring-white">
                                 <AvatarImage src="/placeholder.svg?height=32&width=32&text=AI" />
@@ -535,7 +547,7 @@ const CulturalFitClient = () => {
                                 >
                                     <h2 className="text-2xl font-semibold mb-4 text-gray-800">
                                         <Typewriter text={question as string} />
-                                        <QuestionReader question={question} questionRead={questionRead} setQuestionRead={setQuestionRead}/>
+                                        <QuestionReader question={question} questionRead={questionRead} setQuestionRead={setQuestionRead} />
                                     </h2>
 
                                     <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">

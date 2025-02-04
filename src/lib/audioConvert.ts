@@ -1,25 +1,21 @@
-import useLoading from '@/hooks/useLoading';
-import { AssemblyAI } from 'assemblyai';
+import Groq from 'groq-sdk';
 
-const client = new AssemblyAI({
-    apiKey: 'bb271ed936ba4dc187ee92958fe1ebc7',
-});
+const groq = new Groq({ apiKey: "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", dangerouslyAllowBrowser: true });
 
 interface TranscriptResponse {
     text: string;
 }
 
-export const getTranscript = async (audioUrl: string): Promise<string> => {
-    const data = {
-        audio: audioUrl
-    };
-
+export const getTranscript = async (audio: File): Promise<string> => {
     try {
-        //@ts-ignore
-        const transcript: TranscriptResponse = await client.transcripts.transcribe(data);
-        return transcript.text;
+        const transcription: TranscriptResponse = await groq.audio.transcriptions.create({
+            file: audio,
+            model: 'distil-whisper-large-v3-en',
+            response_format: 'verbose_json',
+        });
+        return transcription.text;
     } catch (error) {
-        console.error("Error transcribing audio:", error);
-        throw new Error("Failed to transcribe audio");
+        console.error('Error transcribing audio:', error);
+        throw error;
     }
 };
