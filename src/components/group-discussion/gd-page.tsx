@@ -34,7 +34,6 @@ interface Participant {
     avatar: string
     voice?: string
 }
-
 const DiscussionSummary: React.FC<{ summary: string }> = ({ summary }) => {
     const [prefix, actualSummary] = summary.split("Summary: ")
     return (
