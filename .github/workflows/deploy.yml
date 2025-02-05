@@ -20,14 +20,4 @@ jobs:
         run: npm run build
 
       - name: Deploy to Azure VM via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.AZURE_VM_IP }}
-          username: ${{ secrets.AZURE_VM_USER }}
-          key: ${{ secrets.AZURE_SSH_KEY }}
-          script: |
-            cd NextRound-Frontend/
-            git pull origin main
-            npm install
-            npm run build
-            pm2 restart nextapp || pm2 start npm --name "nextapp" -- start
+        run : pm2 restart nextapp || pm2 start npm --name "nextapp" -- start
