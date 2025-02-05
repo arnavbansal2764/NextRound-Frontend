@@ -19,11 +19,15 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name : Stop old Process
-        run : pm2 stop nextapp
-
-      - name : Delete old Process
-        run : pm2 delete nextapp
-
-      - name : Deploy New Process
-        run : pm2 start npm --name "nextapp" -- start
+      - name: Deploy to Azure VM
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.AZURE_VM_HOST }}
+          username: ${{ secrets.AZURE_VM_USER }}
+          key: ${{ secrets.AZURE_VM_SSH_KEY }}
+          script: |
+            cd /path/to/NextRound-Frontend
+            git pull origin main
+            npm install
+            npm run build
+            pm2 restart nextapp || pm2 start npm --name "nextapp" -- start
