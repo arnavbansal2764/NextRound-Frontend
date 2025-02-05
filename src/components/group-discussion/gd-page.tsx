@@ -52,7 +52,6 @@ const DiscussionSummary: React.FC<{ summary: string }> = ({ summary }) => {
         </motion.div>
     )
 }
-
 const ParticipantVideo: React.FC<{
     participant: Participant
     isActive: boolean
