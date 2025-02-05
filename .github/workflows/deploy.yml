@@ -19,8 +19,11 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name: Deploy to Azure VM via SSH
-        script:
-          pm2 stop nextapp
-          pm2 delete nextapp
-          pm2 start npm --name "nextapp" -- start
+      - name : Stop old Process
+        run : pm2 stop nextapp
+
+      - name : Delete old Process
+        run : pm2 delete nextapp
+
+      - name : Deploy New Process
+        run : pm2 start npm --name "nextapp" -- start
