@@ -11,7 +11,7 @@ export default function PracticeInterviewPage({
   return (
     <PracticeInterview
       websocketUrl={
-        process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:8766"
+        process.env.WEBSOCKET_PRACTICE_INTERVIEW || "ws://localhost:8766"
       }
       path={params.language}
     />

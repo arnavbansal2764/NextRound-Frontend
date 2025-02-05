@@ -101,11 +101,6 @@ export default function InterviewClient() {
         }
     }, [])
 
-
-    useEffect(() => {
-        console.log("Feedback state updated:", feedback)
-    }, [feedback])
-
     useEffect(() => {
         if (questionRead && avatarVideoRef.current) {
             const playPromise = avatarVideoRef.current.play();
@@ -304,7 +299,7 @@ export default function InterviewClient() {
     const fetchQuestions = async () => {
         setCreatingInterview(true)
         try {
-            const newClient = new InterviewSocketClient("ws://localhost:8765")
+            const newClient = new InterviewSocketClient(process.env.WEBSOCKET_INTERVIEW as string || "ws://localhost:8765")
             await newClient.connect(resume, totalQuestions, level)
             setClient(newClient)
             const { question } = await newClient.getQuestion()

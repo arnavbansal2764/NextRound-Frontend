@@ -32,6 +32,7 @@ export default function Header() {
     { name: "Guidance", href: "/guidance" },
     { name: "Resume Enhancer", href: "/resume-enhancer" },
     { name: "Cold Approach", href: "/cold-approach" },
+    { name: "Group Discussion", href: "/group-discussion" },
   ]
 
   return (

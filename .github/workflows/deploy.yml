@@ -1,0 +1,33 @@
+name: Deploy Next.js App to Azure VM
+
+on:
+  push:
+    branches:
+      - main  # Change to the branch you want to deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Deploy to Azure VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AZURE_VM_IP }}
+          username: ${{ secrets.AZURE_VM_USER }}
+          key: ${{ secrets.AZURE_SSH_KEY }}
+          script: |
+            cd NextRound-Frontend/
+            git pull origin main
+            npm install
+            npm run build
+            pm2 restart nextapp || pm2 start npm --name "nextapp" -- start

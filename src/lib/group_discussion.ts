@@ -42,7 +42,7 @@ export class GroupDiscussionClient {
     private socket!: WebSocket
     private messageHandlers: MessageHandler[] = []
 
-    constructor(private url = "ws://localhost:8765") { }
+    constructor(private url = process.env.WEBSOCKET_GD as string || "ws://localhost:8767") { }
 
     connect(): Promise<void> {
         return new Promise((resolve, reject) => {

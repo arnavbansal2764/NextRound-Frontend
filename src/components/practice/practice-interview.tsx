@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useRef, useMemo, useCallback } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -13,7 +13,6 @@ import useLoading from "@/hooks/useLoading"
 import toast from "react-hot-toast"
 import { getTranscript } from "@/lib/audioConvert"
 import axios from "axios"
-import { sendDataToBackend } from "@/lib/saveData"
 import { useSession } from "next-auth/react"
 import { InterviewSocketClient } from "@/lib/otherInterview"
 import { InterviewLayout } from "./interview-layout"
@@ -22,14 +21,9 @@ import QuestionReader from "../cultural-fit/screen-reader"
 import AnalyzingResponseAnimation from "../interview/analyzing-response"
 import EndInterview from "../interview/end-interview"
 import VoiceAnimation from "../interview/voice-animation"
-import FeedbackComponent from "../interview/feedback-component"
 import Modal from "../modals/modal"
 import InterviewFeedback from "./interview-feedback"
-import { synthesizeSpeech } from "@/lib/polly_speech"
 import { useRouter } from "next/navigation"
-
-const ELEVEN_LABS_VOICE_ID = process.env.NEXT_PUBLIC_ELEVEN_LABS_VOICE_ID || ""
-const ELEVEN_LABS_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY || ""
 
 enum STEPS {
   LEVEL = 0,
