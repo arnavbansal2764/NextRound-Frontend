@@ -1,7 +1,6 @@
 "use client";
 
 import PracticeInterview from "@/components/practice/practice-interview";
-import { useSearchParams } from "next/navigation";
 
 export default function PracticeInterviewPage({
   params,
@@ -11,7 +10,7 @@ export default function PracticeInterviewPage({
   return (
     <PracticeInterview
       websocketUrl={
-        process.env.WEBSOCKET_PRACTICE_INTERVIEW || "ws://localhost:8766"
+        "wss://ws1.nextround.tech"
       }
       path={params.language}
     />

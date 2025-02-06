@@ -299,7 +299,7 @@ export default function InterviewClient() {
     const fetchQuestions = async () => {
         setCreatingInterview(true)
         try {
-            const newClient = new InterviewSocketClient(process.env.WEBSOCKET_INTERVIEW as string || "ws://localhost:8765")
+            const newClient = new InterviewSocketClient("wss://ws.nextround.tech")
             await newClient.connect(resume, totalQuestions, level)
             setClient(newClient)
             const { question } = await newClient.getQuestion()
