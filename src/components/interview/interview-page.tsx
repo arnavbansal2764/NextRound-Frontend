@@ -458,7 +458,7 @@ export default function InterviewClient() {
                     <div className="relative w-full h-full">
                         <video
                             ref={avatarVideoRef}
-                            src="/ai_avatar_speaking.mp4"
+                            src="https://uploadthingalternative.s3.ap-south-1.amazonaws.com/ai_avatar_speaking.mp4"
                             className={`absolute w-full h-full object-cover transition-opacity duration-500 ${questionRead ? "opacity-100" : "opacity-0"
                                 }`}
                             autoPlay
@@ -466,7 +466,7 @@ export default function InterviewClient() {
                         />
                         <video
                             ref={avatarVideoRef}
-                            src="/ai_avatar_stop.mp4"
+                            src="https://uploadthingalternative.s3.ap-south-1.amazonaws.com/ai_avatar_stop.mp4"
                             className={`absolute w-full h-full object-cover transition-opacity duration-500 ${questionRead ? "opacity-0" : "opacity-100"
                                 }`}
                             autoPlay
