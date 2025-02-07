@@ -363,22 +363,6 @@ const CulturalFitClient = () => {
         }
     };
 
-    const deleteAudio = async (fileName: string) => {
-        try {
-            if (!fileName) throw new Error('File name is missing for deletion.');
-
-            // Send delete request to API
-            const res = await axios.post('/api/s3/delete', { fileName });
-            if (res.status !== 200) {
-                throw new Error('Failed to delete the file.');
-            }
-
-            console.log('File deleted successfully.');
-        } catch (error) {
-            console.error('Delete failed:', error);
-            setError('Failed to delete the file.');
-        }
-    };
 
     const analyzeAudio = async (audioUrl: string) => {
         try {
@@ -396,12 +380,7 @@ const CulturalFitClient = () => {
             console.error('Error analyzing audio:', error);
             // setAnalysisResult(example); // Fallback result
             setError('Error analyzing audio. Please try again.');
-        } finally {
-            // Delete the audio file after analysis
-            if (fileName) {
-                await deleteAudio(fileName);
-            }
-        }
+        } 
     };
     const router = useRouter();
     const handleStartCultural = () => {

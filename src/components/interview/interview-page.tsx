@@ -309,20 +309,6 @@ export default function InterviewClient() {
             toast.error("Failed to start the interview. Please try again.")
         } finally {
             setCreatingInterview(false)
-            try {
-                if (!resumefile?.name) throw new Error("File name is missing for deletion.")
-
-                // Send delete request to API
-                const res = await axios.post("/api/s3/delete", { fileName: resumefile?.name })
-                if (res.status !== 200) {
-                    throw new Error("Failed to delete the file.")
-                }
-
-                console.log("File deleted successfully.")
-            } catch (error) {
-                console.error("Delete failed:", error)
-                setError("Failed to delete the file.")
-            }
         }
     }
 
