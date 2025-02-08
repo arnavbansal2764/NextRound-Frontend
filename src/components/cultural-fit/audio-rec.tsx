@@ -367,7 +367,7 @@ const CulturalFitClient = () => {
     const analyzeAudio = async (audioUrl: string) => {
         try {
             // Send audio URL for analysis
-            const response = await axios.post('/api/cultural-fit', { audioUrl, question });
+            const response = await axios.post('/api/cultural-fit', { audio_url : audioUrl, question });
 
             console.log('Analysis result:', response.data);
             const analysisResult: CulturalFitAnalysisProps = response.data; // Assuming response.data is already in the correct format
