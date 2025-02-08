@@ -10,7 +10,7 @@ export default function PracticeInterviewPage({
   return (
     <PracticeInterview
       websocketUrl={
-        "wss://ws1.nextround.tech"
+        "wss://ws1.nextround.tech/ws/practice-interview"
       }
       path={params.language}
     />

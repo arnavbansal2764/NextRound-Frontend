@@ -1,22 +1,23 @@
-import { RedisManager } from '@/lib/redis/RedisManagerCultural';
-import { GET_CULTURAL_FIT } from '@/lib/redis/types';
+import axios from 'axios';
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
     try {
         console.log('POST /api/cultural-fit');
-        const { audioUrl,question } = await req.json();
-       
-        const res = await RedisManager.getInstance().sendAndAwait({
-            type: GET_CULTURAL_FIT,
-            data: {
-                audio_url: audioUrl,
-                question: question,
-            },
-          })
-        console.log('Cultural-fit \n', res.payload);
-      
-        return NextResponse.json(res.payload);
+        const { audio_url, question } = await req.json();
+
+        if (!audio_url || !question) {
+            return NextResponse.json({ type: 'ERROR', payload: 'Next error' }, { status: 400 });
+        }
+
+        const res = await axios.post('https://api.nextround.tech/culture-analysis',
+            {
+                audio_url,
+                question
+            }
+        )
+        console.log('Cultural-fit \n', res.data.payload);
+        return NextResponse.json(res.data.payload);
     } catch (error) {
         console.error('Error in cultural-fit API route:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

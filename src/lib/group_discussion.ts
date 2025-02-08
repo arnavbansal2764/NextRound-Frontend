@@ -42,7 +42,7 @@ export class GroupDiscussionClient {
     private socket!: WebSocket
     private messageHandlers: MessageHandler[] = []
 
-    constructor(private url = "wss://ws2.nextround.tech") { }
+    constructor(private url = "wss://ws2.nextround.tech/ws/group-discussion") { }
 
     connect(): Promise<void> {
         return new Promise((resolve, reject) => {
