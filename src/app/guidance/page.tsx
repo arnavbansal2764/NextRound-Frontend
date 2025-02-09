@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import axios from "axios"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,21 +9,20 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Loader2, BookOpen, Sparkles, Target } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import AnimatedBackground from "@/components/animated-background"
 
 interface Course {
-    courseName: string
-    courseLink: string
+    [courseName: string]: string
 }
 
 interface ApiResponse {
-    courses: Course[]
+    courses: Course
 }
+
 
 export default function CareerGuidancePage() {
     const [currentStatus, setCurrentStatus] = useState("")
     const [endGoal, setEndGoal] = useState("")
-    const [courses, setCourses] = useState<Course[]>([])
+    const [courses, setCourses] = useState<Course>({})
     const [isLoading, setIsLoading] = useState(false)
     const { toast } = useToast()
 
@@ -71,7 +70,6 @@ export default function CareerGuidancePage() {
 
     return (
         <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
-            <AnimatedBackground />
             <div className="relative z-10">
                 <motion.div
                     className="bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-500 text-white pt-24 pb-32 relative overflow-hidden"
@@ -174,7 +172,7 @@ export default function CareerGuidancePage() {
                     </motion.div>
 
                     <AnimatePresence>
-                        {courses.length > 0 && (
+                        {Object.keys(courses).length > 0 && (
                             <motion.div
                                 key="courses"
                                 variants={containerVariants}
@@ -189,8 +187,8 @@ export default function CareerGuidancePage() {
                                 >
                                     Recommended Courses
                                 </motion.h2>
-                                <motion.div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" variants={containerVariants}>
-                                    {courses.map((course, index) => (
+                                <motion.div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2" variants={containerVariants}>
+                                    {Object.entries(courses).map(([courseName, courseLink], index) => (
                                         <motion.div
                                             key={index}
                                             variants={itemVariants}
@@ -200,12 +198,12 @@ export default function CareerGuidancePage() {
                                             <Card className="h-full flex flex-col justify-between shadow-lg hover:shadow-xl transition-shadow duration-300 bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg border-l-4 border-indigo-500">
                                                 <CardHeader>
                                                     <CardTitle className="text-xl font-semibold text-gray-800 dark:text-white">
-                                                        {course.courseName}
+                                                        {courseName}
                                                     </CardTitle>
                                                 </CardHeader>
                                                 <CardContent className="flex-grow">
                                                     <motion.a
-                                                        href={course.courseLink}
+                                                        href={courseLink}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="inline-flex items-center text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 font-medium"
