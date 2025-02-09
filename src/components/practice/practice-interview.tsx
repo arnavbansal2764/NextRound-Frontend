@@ -255,13 +255,11 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
         const audioFile = new File([audioBlob], "audio.wav", { type: "audio/wav" });
         setIsAnalyzing(true);
         try {
-          const audioUrl = await uploadAudio(audioFile);
-
-          if (audioUrl !== "Error Uploading Audio") {
-            const transcriptText = await getTranscript(audioUrl);
+          if (audioFile) {
+            const transcriptText = await getTranscript(audioFile);
             setTranscript(transcriptText);
           } else {
-            toast.error("Error uploading audio");
+            toast.error("Error processing audio");
           }
         } catch (error) {
           console.error("Error processing audio:", error);
@@ -279,32 +277,6 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
     });
   };
 
-
-  const uploadAudio = async (file: File) => {
-    try {
-      const fileName = `${Date.now()}-${file.name}` // Generate unique file name
-      const fileType = file.type
-
-      const res = await axios.post("/api/s3/upload", { fileName, fileType })
-      const { uploadUrl } = await res.data
-
-      if (!uploadUrl) {
-        throw new Error("Failed to get upload URL")
-      }
-
-      const upload = await axios.put(uploadUrl, file)
-      if (upload.status !== 200) {
-        throw new Error("Failed to upload audio")
-      }
-
-      const audioUrl = uploadUrl.split("?")[0]
-      return audioUrl
-    } catch (error) {
-      console.error("Upload failed:", error)
-      setError("Failed to upload audio. Please try again.")
-      return ""
-    }
-  }
 
   const stopRecording = () => {
     setIsRecording(false)
