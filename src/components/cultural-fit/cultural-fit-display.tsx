@@ -217,16 +217,16 @@ const CulturalFitAnalysis: React.FC<{ data: CulturalFitAnalysisProps }> = ({ dat
       {data.primary_traits?.length > 0 && (
         <Card className="bg-white shadow-lg border-0 hover:bg-slate-100" >
           <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center" onClick={() => toggleCategory("emotionalIntelligence")}>
               <div onClick={() => toggleCategory("emotionalIntelligence")}>
                 <CardTitle className="text-xl font-semibold text-gray-800">Emotional Intelligence Analysis</CardTitle>
                 <CardDescription className="text-gray-600">
                   Real-time breakdown of emotional patterns and responses
                 </CardDescription>
               </div>
-              <Button  variant="ghost" size="sm" className="p-0">
+              <Button variant="ghost" size="sm" className="p-0" onClick={() => toggleCategory("emotionalIntelligence")}>
                 {expandedCategories["emotionalIntelligence"] ? (
-                  <ChevronUp className="h-6 w-6" />
+                  <ChevronUp className="h-6 w-6"  />
                 ) : (
                   <ChevronDown className="h-6 w-6" />
                 )}
