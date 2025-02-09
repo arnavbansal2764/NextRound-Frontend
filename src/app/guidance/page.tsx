@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Loader2, BookOpen, Sparkles, Target } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useSession } from "next-auth/react"
+import toast from "react-hot-toast"
 
 interface Course {
     [courseName: string]: string
@@ -24,27 +25,23 @@ export default function CareerGuidancePage() {
     const [endGoal, setEndGoal] = useState("")
     const [courses, setCourses] = useState<Course>({})
     const [isLoading, setIsLoading] = useState(false)
-    const { toast } = useToast()
-
+    const {data:session} = useSession()
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
+        if(!session){
+            toast.error("You need to be logged in to access this feature")
+            setIsLoading(false)
+            return
+        }
 
         try {
             const { data } = await axios.post<ApiResponse>("/api/guidance", { currentStatus, endGoal })
             setCourses(data.courses)
-            toast({
-                title: "Success",
-                description: "Career guidance is ready!",
-                duration: 3000,
-            })
+            toast.success("Career path analyzed successfully")
         } catch (error) {
             console.error("Error fetching career guidance:", error)
-            toast({
-                title: "Error",
-                description: "Failed to analyze. Please try again.",
-                variant: "destructive",
-            })
+            toast.error("Failed to analyze career path")
         } finally {
             setIsLoading(false)
         }
