@@ -7,6 +7,7 @@ import { useEffect } from "react"
 import { useInView } from "react-intersection-observer"
 import { GradientBackground } from "./gradientbg"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 
 export default function ColdApproach() {
     const features = [
@@ -60,7 +61,7 @@ export default function ColdApproach() {
             },
         },
     }
-
+    const router = useRouter();
     return (
         <section className="relative py-24 overflow-hidden">
             <GradientBackground />
@@ -139,7 +140,7 @@ export default function ColdApproach() {
                             ))}
                         </motion.ul>
                         <motion.div variants={itemVariants}>
-                            <Button className="group">
+                            <Button className="group" onClick={()=>router.push("/cold-approach")}>
                                 Start Cold Outreach
                                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                             </Button>

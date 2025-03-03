@@ -5,6 +5,7 @@ import { CheckCircle, ChevronRight, Code, Users, FileText, Send } from "lucide-r
 import { GradientBackground } from "./gradientbg"
 import { useEffect, useRef } from "react"
 import { useInView } from "react-intersection-observer"
+import { useRouter } from "next/navigation"
 
 export default function Roadmap() {
     const steps = [
@@ -14,6 +15,7 @@ export default function Roadmap() {
             features: ["AI-powered code analysis", "Real-time feedback", "Extensive problem library"],
             icon: Code,
             color: "from-blue-400 to-blue-600",
+            page: "/interview",
         },
         {
             title: "Cultural Fit Assessment",
@@ -21,6 +23,7 @@ export default function Roadmap() {
             features: ["Company culture insights", "Personalized fit scores", "Interview strategy tips"],
             icon: Users,
             color: "from-purple-400 to-purple-600",
+            page: "/cultural-fit",
         },
         {
             title: "Resume Enhancement",
@@ -28,6 +31,7 @@ export default function Roadmap() {
             features: ["AI-driven suggestions", "Industry-specific keywords", "ATS optimization"],
             icon: FileText,
             color: "from-green-400 to-green-600",
+            page: "/resume-enhancer",
         },
         {
             title: "Cold Approach Mastery",
@@ -35,6 +39,7 @@ export default function Roadmap() {
             features: ["Tailored message templates", "Follow-up strategies", "Network expansion tips"],
             icon: Send,
             color: "from-red-400 to-red-600",
+            page: "/cold-approach",
         },
     ]
 
@@ -82,7 +87,7 @@ export default function Roadmap() {
             },
         },
     }
-
+    const router = useRouter();
     return (
         <section className="relative py-32 overflow-hidden perspective-1000">
             <GradientBackground />
@@ -93,7 +98,7 @@ export default function Roadmap() {
                     transition={{ duration: 0.8, ease: "easeOut" }}
                     className="text-5xl md:text-6xl font-bold text-center mb-24 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600"
                 >
-                    Your 3D Path to Interview Success
+                    Your Path to Interview Success
                 </motion.h2>
                 <motion.div
                     className="max-w-6xl mx-auto relative"
@@ -129,27 +134,31 @@ export default function Roadmap() {
                             variants={itemVariants}
                             className={`flex mb-32 last:mb-0 ${index % 2 === 0 ? "justify-start" : "justify-end"}`}
                             style={{ perspective: 1000 }}
+                            onClick={()=>router.push(step.page)}
                         >
                             <motion.div
                                 className={`w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 relative ${index % 2 === 0 ? "mr-16" : "ml-16"}`}
                                 whileHover={{ scale: 1.05, rotateY: index % 2 === 0 ? 5 : -5 }}
                                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                onClick={() => router.push(step.page)}
                             >
                                 <motion.div
                                     className={`absolute top-8 -mt-2 w-16 h-16 rounded-full bg-gradient-to-r ${step.color} flex items-center justify-center text-white shadow-lg`}
                                     whileHover={{ scale: 1.1, rotate: 360 }}
                                     transition={{ duration: 0.5 }}
+                                    onClick={() => router.push(step.page)}
                                 >
                                     <step.icon size={32} />
                                 </motion.div>
-                                <div className={`ml-20 ${index % 2 === 0 ? "" : "text-right"}`}>
+                                <div className={`ml-20 ${index % 2 === 0 ? "" : "text-right"}`} onClick={() => router.push(step.page)}>
                                     <h3
                                         className={`text-2xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r ${step.color}`}
+                                        onClick={() => router.push(step.page)}
                                     >
                                         {step.title}
                                     </h3>
-                                    <p className="text-gray-600 dark:text-gray-300 mb-6">{step.description}</p>
-                                    <ul className={`space-y-3 ${index % 2 === 0 ? "" : "flex flex-col items-end"}`}>
+                                    <p onClick={() => router.push(step.page)} className="text-gray-600 dark:text-gray-300 mb-6">{step.description}</p>
+                                    <ul onClick={() => router.push(step.page)} className={`space-y-3 ${index % 2 === 0 ? "" : "flex flex-col items-end"}`}>
                                         {step.features.map((feature, featureIndex) => (
                                             <motion.li
                                                 key={featureIndex}
@@ -157,9 +166,10 @@ export default function Roadmap() {
                                                 initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ delay: 0.5 + featureIndex * 0.1 }}
+                                                onClick={() => router.push(step.page)}
                                             >
-                                                <CheckCircle className={`h-5 w-5 text-${step.color.split("-")[1]}-500 flex-shrink-0`} />
-                                                <span className="text-sm text-gray-600 dark:text-gray-300">{feature}</span>
+                                                <CheckCircle className={`h-5 w-5 text-${step.color.split("-")[1]}-500 flex-shrink-0`} onClick={() => router.push(step.page)} />
+                                                <span className="text-sm text-gray-600 dark:text-gray-300" onClick={() => router.push(step.page)}>{feature}</span>
                                             </motion.li>
                                         ))}
                                     </ul>
@@ -168,9 +178,11 @@ export default function Roadmap() {
                                     className={`absolute ${index % 2 === 0 ? "-right-8" : "-left-8"} top-1/2 transform -translate-y-1/2 w-16 h-16 bg-white dark:bg-gray-800 rounded-full shadow-xl flex items-center justify-center`}
                                     whileHover={{ scale: 1.2, rotate: index % 2 === 0 ? 90 : -90 }}
                                     whileTap={{ scale: 0.9 }}
+                                    onClick={() => router.push(step.page)}
                                 >
                                     <ChevronRight
                                         className={`h-8 w-8 text-${step.color.split("-")[1]}-600 ${index % 2 === 0 ? "" : "rotate-180"}`}
+                                        onClick={() => router.push(step.page)}
                                     />
                                 </motion.div>
                             </motion.div>

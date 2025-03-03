@@ -16,7 +16,6 @@ import axios from "axios"
 import { useSession } from "next-auth/react"
 import { InterviewSocketClient } from "@/lib/otherInterview"
 import { InterviewLayout } from "./interview-layout"
-import StartInterview from "../interview/start-interview"
 import QuestionReader from "../cultural-fit/screen-reader"
 import AnalyzingResponseAnimation from "../interview/analyzing-response"
 import EndInterview from "../interview/end-interview"
@@ -24,6 +23,7 @@ import VoiceAnimation from "../interview/voice-animation"
 import Modal from "../modals/modal"
 import InterviewFeedback from "./interview-feedback"
 import { useRouter } from "next/navigation"
+import StartInterview from "./start-interview"
 
 enum STEPS {
   LEVEL = 0,
@@ -482,7 +482,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
           </div>
         </motion.div>
       </div>
-      {creatingInterview && <StartInterview />}
+      {creatingInterview && <StartInterview/>}
       {isAnalyzing && <AnalyzingResponseAnimation />}
       {endInterviewNotification && <EndInterview />}
       {!displayingFeedback && (<AnimatePresence mode="wait">

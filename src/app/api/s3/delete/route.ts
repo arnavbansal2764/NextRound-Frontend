@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'File name is required' }, { status: 400 });
         }
         const params = {
-            Bucket: process.env.AWS_BUCKET_NAME!, 
+            Bucket: process.env.NEXT_AWS_BUCKET_NAME!, 
             Key: fileName, 
         };
 

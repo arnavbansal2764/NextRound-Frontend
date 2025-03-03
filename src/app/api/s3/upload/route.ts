@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
         const { fileName, fileType } = await request.json();
 
         const params = {
-            Bucket: process.env.AWS_BUCKET_NAME!,
+            Bucket: process.env.NEXT_AWS_BUCKET_NAME!,
             Key: fileName,
             ContentType: fileType,
             Expires: 60, 
