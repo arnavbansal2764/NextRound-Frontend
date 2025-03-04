@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
     try {
-        console.log('POST /api/cold-approach');
+        // console.log('POST /api/cold-approach');
         const { user_info, job_description, approach_platform } = await req.json();
         if (!user_info || !job_description || !approach_platform) {
             return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
                 approach_platform
             }
         )
-        console.log('Cold Approach \n', res.data);
+        // console.log('Cold Approach \n', res.data);
 
         return NextResponse.json(res.data.payload);
     } catch (error) {

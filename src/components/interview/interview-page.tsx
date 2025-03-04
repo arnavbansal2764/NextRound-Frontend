@@ -122,16 +122,16 @@ export default function InterviewClient() {
         setTranscript("")
         try {
             const analysisResult: AnalyzeResponse = await client.analyze()
-            console.log(analysisResult)
+            // console.log(analysisResult)
             setFeedback(analysisResult as AnalyzeResponse)
-            console.log("Set feedback", feedback)
+            // console.log("Set feedback", feedback)
             await client.stopInterview()
             client.close()
             setClient(null)
 
             if (session?.user?.id) {
                 const saveData = await sendDataToBackend(session.user.id, analysisResult, "interview", resume)
-                console.log("Interview data sent to backend successfully", saveData)
+                // console.log("Interview data sent to backend successfully", saveData)
             } else {
                 console.error("User not authenticated")
             }
@@ -170,7 +170,7 @@ export default function InterviewClient() {
 
     const endCall = () => {
         endInterview()
-        console.log("Call ended")
+        // console.log("Call ended")
     }
 
     const startRecording = () => {
@@ -205,7 +205,7 @@ export default function InterviewClient() {
                         // 3 seconds of silence
                         if (!isSilenceDetected) {
                             setIsRecording(false)
-                            console.log("Silence detected. Stopping recording...")
+                            // console.log("Silence detected. Stopping recording...")
                             isSilenceDetected = true
                             mediaRecorder.stop()
                             stream.getTracks().forEach((track) => track.stop())
@@ -322,8 +322,8 @@ export default function InterviewClient() {
 
         const sendApi = async () => {
             try {
-                console.log("Resume is ", resume)
-                console.log("Level is ", level)
+                // console.log("Resume is ", resume)
+                // console.log("Level is ", level)
                 setModalOpen(false)
                 setIsInterviewStarted(true)
                 await fetchQuestions()

@@ -262,7 +262,7 @@ export default function GroupDiscussion() {
                         // 3 seconds of silence
                         if (!isSilenceDetected) {
                             setIsRecording(false)
-                            console.log("Silence detected. Stopping recording...")
+                            // console.log("Silence detected. Stopping recording...")
                             isSilenceDetected = true
                             mediaRecorder.stop()
                             stream.getTracks().forEach((track) => track.stop())

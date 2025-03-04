@@ -159,7 +159,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
       }
 
       const saveData = await response.json();
-      console.log("Interview data saved successfully:", saveData);
+      // console.log("Interview data saved successfully:", saveData);
       toast.success("Interview completed and saved successfully!");
 
     } catch (error) {
@@ -198,7 +198,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
 
   const endCall = () => {
     endInterview()
-    console.log("Call ended")
+    // console.log("Call ended")
   }
 
   const startRecording = () => {
@@ -232,7 +232,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
           } else if (performance.now() - silenceStart > 3000) {
             // 3 seconds of silence
             if (!isSilenceDetected) {
-              console.log("Silence detected. Stopping recording...");
+              // console.log("Silence detected. Stopping recording...");
               setIsRecording(false);
               isSilenceDetected = true;
               mediaRecorder.stop();
@@ -329,7 +329,7 @@ export default function PracticeInterview({ websocketUrl, path }: PracticeInterv
     }
 
     try {
-      console.log("Level is ", level)
+      // console.log("Level is ", level)
       setModalOpen(false)
       setIsInterviewStarted(true)
       await fetchQuestions()

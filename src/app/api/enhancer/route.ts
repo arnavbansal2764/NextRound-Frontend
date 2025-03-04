@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
     try {
-        console.log('POST /api/enhancer');
+        // console.log('POST /api/enhancer');
         const { resumeUrl, jobDescription } = await req.json();
         if (!resumeUrl || !jobDescription) {
             return NextResponse.json({ error: 'Invalid Request' }, { status: 400 });
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
                 jobDescription
             }
         )
-        console.log('Resume Enhancer \n', res.data.payload);
+        // console.log('Resume Enhancer \n', res.data.payload);
 
         return NextResponse.json(res.data.payload);
     } catch (error) {

@@ -262,7 +262,7 @@ const CulturalFitClient = () => {
                         });
 
                         setAudioFile(audioFile);
-                        console.log("Recording finished, file URL:", URL.createObjectURL(audioBlob));
+                        // console.log("Recording finished, file URL:", URL.createObjectURL(audioBlob));
                     };
 
                     const checkSilence = () => {
@@ -276,7 +276,7 @@ const CulturalFitClient = () => {
                             } else if (performance.now() - silenceStart > 3000) {
                                 // 3 seconds of silence
                                 if (!isSilenceDetected) {
-                                    console.log("Silence detected. Stopping recording...");
+                                    // console.log("Silence detected. Stopping recording...");
                                     isSilenceDetected = true;
                                     mediaRecorder.stop();
                                     stream.getTracks().forEach((track) => track.stop());
@@ -313,7 +313,7 @@ const CulturalFitClient = () => {
             audioRef.current.stop();
             setIsRecording(false);
         }
-        console.log("Recording stopped", audioFile)
+        // console.log("Recording stopped", audioFile)
     };
 
     const uploadAudio = async (file: File) => {
@@ -369,13 +369,13 @@ const CulturalFitClient = () => {
             // Send audio URL for analysis
             const response = await axios.post('/api/cultural-fit', { audio_url : audioUrl, question });
 
-            console.log('Analysis result:', response.data);
+            // console.log('Analysis result:', response.data);
             const analysisResult: CulturalFitAnalysisProps = response.data; // Assuming response.data is already in the correct format
             setAnalysisResult(analysisResult); // Set the analysis result
             setError(null); // Clear any previous error
 
             const saveData = await sendDataToBackend(`${session?.user.id}`, analysisResult, 'cultural');
-            console.log('Cultural fit data saved successfully:', saveData);
+            // console.log('Cultural fit data saved successfully:', saveData);
         } catch (error) {
             console.error('Error analyzing audio:', error);
             // setAnalysisResult(example); // Fallback result
