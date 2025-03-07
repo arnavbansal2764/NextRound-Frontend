@@ -25,24 +25,7 @@ const levels = [
   { text: "Intermediate", icon: Briefcase },
   { text: "Senior Positions", icon: Trophy },
 ]
-const example = `{
-    "status": "goodbye",
-    "message": "Thank you for participating in the interview. Have a great day! averageScore : 0.45 totalScore: 0.9",
-    "history": [
-      {
-        "question": "What is the significance of designing a scalable architecture in the NextRound project?",
-        "answer": "time designing a scalable arch architecture in nexon to incorporate corporate surveillance design and handle multiple concurrent users admin time ",
-        "refrenceAnswer": "The significance of designing a scalable architecture in the NextRound project is to support up to 1000 concurrent users seamlessly, ensuring that the platform can handle a large volume of traffic without compromising performance or experiencing downtime. This was achieved using Docker to design a scalable architecture, allowing the platform to adapt to changing user demand, handle spikes in traffic, and provide a smooth user experience.",
-        "score": 0.9
-      },
-      {
-        "question": "How did you implement the async response evaluation system in the NextRound project?",
-        "answer": "",
-        "refrenceAnswer": "I implemented the async response evaluation system in the NextRound project by developing a real-time response evaluation system using NextJs, Prisma, MongoDB, and TypeScript. This system provided users with feedback and improvement suggestions on their responses. The system was highly scalable, designed with a scalable architecture using Docker to support up to 1000 concurrent users seamlessly. Additionally, I integrated Groq API to extract key information from resumes and built an AI-based module to dynamically generate interview questions tailored to resume content.",
-        "score": 0
-      }
-    ]
-  }`
+
 export default function InterviewAssistant() {
   const [isRecording, setIsRecording] = useState<boolean>(false)
   const [isConfigured, setIsConfigured] = useState<boolean>(false)
@@ -104,7 +87,7 @@ export default function InterviewAssistant() {
     })
 
     interviewWsRef.current.addAnalysisListener((message) => {
-      setFinalMessage(example)
+      setFinalMessage(message)
     })
 
     return () => {
