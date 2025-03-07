@@ -6,9 +6,13 @@ export interface InterviewConfig {
 }
 
 export interface InterviewScore {
-  role: string;
-  content: string;
+  role?: string;
+  content?: string;
   score?: number;
+  // Add fields from the backend response
+  question?: string;
+  answer?: string;
+  refrenceAnswer?: string;
 }
 
 export interface InterviewResponse {

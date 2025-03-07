@@ -5,25 +5,28 @@ import { motion } from "framer-motion"
 import { CheckCircle, XCircle, AlertTriangle, Award, BarChart3, BookOpen } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 
-interface InterviewQuestion {
-    question: string
-    answer: string
-    refrenceAnswer: string
-    score: number
+// Update interface to match the backend response format
+interface InterviewScore {
+  question: string;
+  answer: string; 
+  refrenceAnswer: string;
+  score: number;
 }
 
 interface InterviewResult {
-    status: string
-    message: string
-    history: InterviewQuestion[]
+  status: string;
+  message: string;
+  history: InterviewScore[];
 }
 
 export default function InterviewResults({
     resultData,
+    scores,
     onClose,
     onStartNew,
 }: {
     resultData: string
+    scores?: InterviewScore[]
     onClose?: () => void
     onStartNew?: () => void
 }) {
@@ -33,25 +36,56 @@ export default function InterviewResults({
     const [averageScore, setAverageScore] = useState<number>(0)
     const [totalScore, setTotalScore] = useState<number>(0)
     const [isLoaded, setIsLoaded] = useState(false)
-
+    
     useEffect(() => {
         try {
-            const data = JSON.parse(resultData) as InterviewResult
-            setParsedData(data)
-
-            // Extract scores from message
-            const scoreMatch = data.message.match(/averageScore\s*:\s*(\d+(\.\d+)?)\s*totalScore:\s*(\d+(\.\d+)?)/)
-            if (scoreMatch) {
-                setAverageScore(Number.parseFloat(scoreMatch[1]))
-                setTotalScore(Number.parseFloat(scoreMatch[3]))
+            // If scores are provided directly, use them
+            if (scores && scores.length > 0) {
+                // Create parsed data structure using the scores
+                const data: InterviewResult = {
+                    status: "complete",
+                    message: resultData,
+                    history: scores
+                };
+                setParsedData(data);
+                
+                // Calculate average score from the scores array
+                let total = 0;
+                let count = 0;
+                scores.forEach(item => {
+                    if (item.score) {
+                        total += item.score;
+                        count++;
+                    }
+                });
+                
+                const avg = count > 0 ? total / count : 0;
+                setAverageScore(avg);
+                setTotalScore(total);
+                setIsLoaded(true);
+            } else {
+                // Fallback to trying to parse the message as JSON
+                try {
+                    const data = JSON.parse(resultData) as InterviewResult
+                    setParsedData(data)
+                    
+                    // Extract scores from message
+                    const scoreMatch = data.message.match(/averageScore\s*:\s*(\d+(\.\d+)?)\s*totalScore:\s*(\d+(\.\d+)?)/)
+                    if (scoreMatch) {
+                        setAverageScore(Number.parseFloat(scoreMatch[1]))
+                        setTotalScore(Number.parseFloat(scoreMatch[3]))
+                    }
+                    setIsLoaded(true)
+                } catch (parseError) {
+                    setError("Failed to parse interview results. Please try again.")
+                    console.error("Failed to parse result data:", parseError)
+                }
             }
-
-            setIsLoaded(true)
         } catch (error) {
-            console.error("Failed to parse interview result data:", error)
-            setError("Failed to parse interview results. Please try again.")
+            console.error("Failed to process interview result data:", error)
+            setError("Failed to process interview results. Please try again.")
         }
-    }, [resultData])
+    }, [resultData, scores])
 
     if (error) {
         return (

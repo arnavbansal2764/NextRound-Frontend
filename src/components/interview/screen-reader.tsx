@@ -13,19 +13,21 @@ const QuestionReader: React.FC<QuestionReaderProps> = ({ question, questionRead,
     useEffect(() => {
         const convertTextToSpeech = async () => {
             try {
-                const audioUrl = await synthesizeSpeech(question);
-                const audio = new Audio(audioUrl!);
-                audioRef.current = audio;
+                if (!questionRead) {
+                    const audioUrl = await synthesizeSpeech(question);
+                    const audio = new Audio(audioUrl!);
+                    audioRef.current = audio;
 
-                audio.onplay = () => {
-                    setQuestionRead(true);
-                };
+                    audio.onplay = () => {
+                        setQuestionRead(true);
+                    };
 
-                audio.onended = () => {
-                    setQuestionRead(false);
-                };
+                    audio.onended = () => {
+                        setQuestionRead(false);
+                    };
 
-                audio.play();
+                    audio.play();
+                }
             } catch (error) {
                 console.error('Error converting text to speech:', error);
                 setQuestionRead(false);
