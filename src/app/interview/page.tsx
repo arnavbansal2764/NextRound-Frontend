@@ -43,7 +43,7 @@ export default function InterviewAssistant() {
   const [showParticipants, setShowParticipants] = useState<boolean>(false)
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [animateResponse, setAnimateResponse] = useState(false)
-  const [questionRead, setQuestionRead] = useState(true)
+  const [questionRead, setQuestionRead] = useState(false)
   const [scores, setScores] = useState<InterviewScore[]>([])
   const interviewWsRef = useRef<InterviewWebSocket | null>(null)
   const responseEndRef = useRef<HTMLDivElement | null>(null)
