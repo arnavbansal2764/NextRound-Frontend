@@ -1,14 +1,25 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
-import { BriefcaseIcon, Menu, X, ChevronDown, LogIn, LogOut, User, LucideLayoutDashboard } from "lucide-react"
+import { Menu, X, ChevronDown, LogIn, LogOut, User, LucideLayoutDashboard } from "lucide-react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
-import { redirect, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from "@/components/ui/dropdown-menu"
 import { signOut, useSession } from "next-auth/react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { cn } from "@/lib/utils"
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -25,14 +36,37 @@ export default function Header() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
+  // Define the navigation structure with nested routes
   const navItems = [
-    { name: "Interview", href: "/interview" },
-    { name: "Cultural Fit", href: "/cultural-fit" },
-    { name: "Practice", href: "/practice" },
-    { name: "Guidance", href: "/guidance" },
+    {
+      name: "Coding",
+      children: [
+        { name: "Technical Interview", href: "/interview" },
+        { name: "Cultural Fit (HR)", href: "/cultural-fit" },
+        { name: "Coding Practice", href: "/practice" },
+      ],
+    },
+    { name: "Career Guidance", href: "/guidance" },
     { name: "Resume Enhancer", href: "/resume-enhancer" },
     { name: "Cold Approach", href: "/cold-approach" },
     { name: "Group Discussion", href: "/group-discussion" },
+    {
+      name: "UPSC",
+      children: [
+        { name: "Main Interview", href: "/upsc/main" },
+        {
+          name: "Subject-Wise",
+          children: [
+            { name: "CSAT", href: "/upsc/subjects/csat" },
+            { name: "Economics", href: "/upsc/subjects/eco" },
+            { name: "Geography", href: "/upsc/subjects/geo" },
+            { name: "History", href: "/upsc/subjects/history" },
+            { name: "Polity", href: "/upsc/subjects/polity" },
+            { name: "Ethics", href: "/upsc/subjects/ethics" },
+          ],
+        },
+      ],
+    },
   ]
 
   return (
@@ -55,6 +89,7 @@ export default function Header() {
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600">NextRound</span>
         </motion.div>
 
+        {/* Desktop Navigation */}
         <nav className="hidden lg:flex items-center gap-6">
           {navItems.map((item, index) => (
             <motion.div
@@ -63,13 +98,55 @@ export default function Header() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Link
-                href={item.href}
-                className="relative font-medium text-gray-700 dark:text-gray-200 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-r hover:from-purple-600 hover:to-blue-600 transition-colors duration-300 group"
-              >
-                {item.name}
-                <span className="absolute left-0 bottom-0 w-full h-0.5 bg-gradient-to-r from-purple-600 to-blue-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-              </Link>
+              {item.children ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="relative font-medium text-gray-700 dark:text-gray-200 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-r hover:from-purple-600 hover:to-blue-600 transition-colors duration-300 group flex items-center gap-1">
+                      {item.name}
+                      <ChevronDown className="h-4 w-4" />
+                      <span className="absolute left-0 bottom-0 w-full h-0.5 bg-gradient-to-r from-purple-600 to-blue-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700">
+                    {item.children.map((child) =>
+                      child.children ? (
+                        <DropdownMenuSub key={child.name}>
+                          <DropdownMenuSubTrigger className="hover:bg-purple-100 dark:hover:bg-gray-700">
+                            {child.name}
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent className="bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700">
+                            {child.children.map((subChild) => (
+                              <DropdownMenuItem
+                                key={subChild.name}
+                                className="hover:bg-purple-100 dark:hover:bg-gray-700"
+                                onSelect={() => router.push(subChild.href)}
+                              >
+                                {subChild.name}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      ) : (
+                        <DropdownMenuItem
+                          key={child.name}
+                          className="hover:bg-purple-100 dark:hover:bg-gray-700"
+                          onSelect={() => router.push(child.href)}
+                        >
+                          {child.name}
+                        </DropdownMenuItem>
+                      ),
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Link
+                  href={item.href || "#"}
+                  className="relative font-medium text-gray-700 dark:text-gray-200 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-r hover:from-purple-600 hover:to-blue-600 transition-colors duration-300 group"
+                >
+                  {item.name}
+                  <span className="absolute left-0 bottom-0 w-full h-0.5 bg-gradient-to-r from-purple-600 to-blue-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+                </Link>
+              )}
             </motion.div>
           ))}
         </nav>
@@ -136,30 +213,82 @@ export default function Header() {
         </div>
       </div>
 
+      {/* Mobile Navigation */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="lg:hidden bg-gradient-to-r from-purple-50 via-blue-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 backdrop-blur-md"
+            className="lg:hidden bg-gradient-to-r from-purple-50 via-blue-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 backdrop-blur-md overflow-hidden"
           >
             <div className="container mx-auto px-4 py-4 space-y-4">
-              {navItems.map((item) => (
-                <motion.div
-                  key={item.name}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
-                  <Link
-                    href={item.href}
-                    className="block py-2 font-medium text-gray-700 dark:text-gray-200 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-r hover:from-purple-600 hover:to-blue-600 transition-colors duration-300"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {item.name}
-                  </Link>
-                </motion.div>
+              {navItems.map((item, index) => (
+                <div key={item.name}>
+                  {item.children ? (
+                    <MobileAccordion title={item.name} delay={index * 0.05}>
+                      <div className="pl-4 space-y-2 mt-2">
+                        {item.children.map((child) => (
+                          <div key={child.name}>
+                            {child.children ? (
+                              <MobileAccordion title={child.name} delay={(index + 1) * 0.05}>
+                                <div className="pl-4 space-y-2 mt-2">
+                                  {child.children.map((subChild) => (
+                                    <motion.div
+                                      key={subChild.name}
+                                      initial={{ opacity: 0, x: -20 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      exit={{ opacity: 0, x: -20 }}
+                                      transition={{ delay: (index + 2) * 0.05 }}
+                                    >
+                                      <Link
+                                        href={subChild.href}
+                                        className="block py-2 font-medium text-gray-700 dark:text-gray-200 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-r hover:from-purple-600 hover:to-blue-600 transition-colors duration-300"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                      >
+                                        {subChild.name}
+                                      </Link>
+                                    </motion.div>
+                                  ))}
+                                </div>
+                              </MobileAccordion>
+                            ) : (
+                              <motion.div
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                transition={{ delay: (index + 1) * 0.05 }}
+                              >
+                                <Link
+                                  href={child.href}
+                                  className="block py-2 font-medium text-gray-700 dark:text-gray-200 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-r hover:from-purple-600 hover:to-blue-600 transition-colors duration-300"
+                                  onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                  {child.name}
+                                </Link>
+                              </motion.div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </MobileAccordion>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Link
+                        href={item.href || "#"}
+                        className="block py-2 font-medium text-gray-700 dark:text-gray-200 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-r hover:from-purple-600 hover:to-blue-600 transition-colors duration-300"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {item.name}
+                      </Link>
+                    </motion.div>
+                  )}
+                </div>
               ))}
               {!session && (
                 <motion.div
@@ -184,6 +313,49 @@ export default function Header() {
         )}
       </AnimatePresence>
     </motion.header>
+  )
+}
+
+// Mobile accordion component for nested navigation on mobile
+function MobileAccordion({
+  title,
+  children,
+  delay = 0,
+}: {
+  title: string
+  children: React.ReactNode
+  delay?: number
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ delay }}
+      className="border-b border-gray-200 dark:border-gray-700 pb-2"
+    >
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full justify-between items-center py-2 font-medium text-gray-700 dark:text-gray-200 hover:text-transparent hover:bg-clip-text hover:bg-gradient-to-r hover:from-purple-600 hover:to-blue-600 transition-colors duration-300"
+      >
+        {title}
+        <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isOpen && "transform rotate-180")} />
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   )
 }
 
