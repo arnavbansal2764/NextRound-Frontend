@@ -17,6 +17,9 @@ import {
   BarChart,
   TrendingUp,
   LineChart,
+  User,
+  CheckCircle,
+  Loader2,
 } from "lucide-react"
 
 const difficultyLevels = [
@@ -31,7 +34,8 @@ export default function EconomicsInterview() {
     isConfigured: false,
     isMicMuted: false,
     interviewComplete: false,
-    connectionStatus: "disconnected" as "disconnected" | "ready" | "complete",
+    connectionStatus: "disconnected" as "disconnected" | "connected" | "ready" | "complete",
+    isLoading: false,
   })
 
   const [uiState, setUiState] = useState({
@@ -46,6 +50,8 @@ export default function EconomicsInterview() {
   const ecoWsRef = useRef<EcoWebSocket | null>(null)
   const responseEndRef = useRef<HTMLDivElement | null>(null)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
+  const audioVisualizerRef = useRef<HTMLCanvasElement | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
 
   // Initialize Economics WebSocket instance
   useEffect(() => {
@@ -59,7 +65,11 @@ export default function EconomicsInterview() {
     }
 
     const handleStatusChange = (status: string) => {
-      setInterviewState((prev) => ({ ...prev, connectionStatus: status as any }))
+      setInterviewState((prev) => ({
+        ...prev,
+        connectionStatus: status as any,
+        isLoading: false,
+      }))
 
       switch (status) {
         case "ready":
@@ -87,10 +97,63 @@ export default function EconomicsInterview() {
     ws.addStatusChangeListener(handleStatusChange)
     ws.addErrorListener((error) => {
       setResponses((prev) => [...prev, `Error: ${error}`])
+      setInterviewState((prev) => ({ ...prev, isLoading: false }))
     })
 
-    return () => ws.disconnect()
+    return () => {
+      ws.disconnect()
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
   }, [])
+
+  // Audio visualizer effect
+  useEffect(() => {
+    if (!audioVisualizerRef.current || !interviewState.isRecording || interviewState.isMicMuted) return
+
+    const canvas = audioVisualizerRef.current
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    const drawVisualizer = () => {
+      const width = canvas.width
+      const height = canvas.height
+
+      ctx.clearRect(0, 0, width, height)
+
+      // Draw audio waves (simulated for this demo)
+      ctx.beginPath()
+      ctx.strokeStyle = "#10b981" // emerald color for economics theme
+      ctx.lineWidth = 2
+
+      const segments = 20
+      const segmentWidth = width / segments
+
+      ctx.moveTo(0, height / 2)
+
+      for (let i = 0; i <= segments; i++) {
+        const x = i * segmentWidth
+        // Generate random heights for the wave effect
+        // In a real implementation, this would use actual audio data
+        const randomFactor = interviewState.isRecording && !interviewState.isMicMuted ? Math.random() * 0.5 + 0.5 : 0.1
+        const y = height / 2 + Math.sin(Date.now() * 0.005 + i * 0.5) * height * 0.2 * randomFactor
+        ctx.lineTo(x, y)
+      }
+
+      ctx.stroke()
+
+      animationFrameRef.current = requestAnimationFrame(drawVisualizer)
+    }
+
+    drawVisualizer()
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [interviewState.isRecording, interviewState.isMicMuted])
 
   useEffect(() => {
     // Auto-scroll to the bottom when new responses arrive
@@ -103,12 +166,14 @@ export default function EconomicsInterview() {
   }, [responses])
 
   const configureAndStartInterview = async () => {
+    setInterviewState((prev) => ({ ...prev, isLoading: true }))
     try {
       if (!ecoWsRef.current) return
 
       await ecoWsRef.current.configure({ difficulty })
     } catch (error) {
       console.error("Error configuring Economics interview:", error)
+      setInterviewState((prev) => ({ ...prev, isLoading: false }))
     }
   }
 
@@ -153,6 +218,7 @@ export default function EconomicsInterview() {
       isMicMuted: false,
       interviewComplete: false,
       connectionStatus: "disconnected",
+      isLoading: false,
     })
     setUiState({
       showChat: false,
@@ -160,10 +226,9 @@ export default function EconomicsInterview() {
       animateResponse: false,
     })
     setResponses([])
-    setInterviewState((prev) => ({ ...prev, isRecording: false }))
     if (ecoWsRef.current) {
       ecoWsRef.current.disconnect()
-      ecoWsRef.current = new EcoWebSocket("ws://localhost:8768")
+      ecoWsRef.current = new EcoWebSocket("wss://ws3.nextround.tech/upsc-economics")
     }
   }
 
@@ -194,7 +259,23 @@ export default function EconomicsInterview() {
   const handleModalAction = (action: "close" | "new") => {
     resetInterview()
     if (action === "new") {
+      // Additional logic for starting a new interview if needed
       configureAndStartInterview()
+    }
+  }
+
+  const getStatusColor = () => {
+    switch (interviewState.connectionStatus) {
+      case "connected":
+        return "bg-blue-500"
+      case "ready":
+        return "bg-emerald-500"
+      case "complete":
+        return "bg-purple-500"
+      case "disconnected":
+        return "bg-red-500"
+      default:
+        return "bg-gray-500"
     }
   }
 
@@ -222,7 +303,7 @@ export default function EconomicsInterview() {
               transition={{ delay: 0.4 }}
               className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
             >
-              <h2 className="text-xl font-bold mb-4 text-center text-blue-300">What to expect:</h2>
+              <h3 className="text-xl font-bold mb-4 text-center text-blue-300">What to expect:</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
                   <BarChart className="h-8 w-8 text-green-400 mb-2 mx-auto" />
@@ -245,7 +326,7 @@ export default function EconomicsInterview() {
               transition={{ delay: 0.5 }}
               className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
             >
-              <h2 className="text-xl font-bold mb-4 text-center text-blue-300">Difficulty Level</h2>
+              <h3 className="text-xl font-bold mb-4 text-center text-blue-300">Difficulty Level</h3>
               <div className="grid grid-cols-3 gap-3">
                 {difficultyLevels.map((levelItem) => (
                   <motion.button
@@ -254,7 +335,7 @@ export default function EconomicsInterview() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     className={`p-3 rounded-lg flex flex-col items-center justify-center transition-all duration-200 ${levelItem.text.toLowerCase() === difficulty
-                        ? "bg-blue-500/30 border-2 border-blue-500 text-white"
+                        ? "bg-emerald-500/30 border-2 border-emerald-500 text-white"
                         : "bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700"
                       }`}
                   >
@@ -275,9 +356,17 @@ export default function EconomicsInterview() {
                 onClick={configureAndStartInterview}
                 whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(16, 185, 129, 0.5)" }}
                 whileTap={{ scale: 0.95 }}
-                className="px-8 py-4 rounded-full font-bold text-white bg-gradient-to-r from-blue-500 to-emerald-600 hover:from-blue-600 hover:to-emerald-700 shadow-lg shadow-blue-500/30 transition-all duration-300"
+                disabled={interviewState.isLoading}
+                className="px-8 py-4 rounded-full font-bold text-white bg-gradient-to-r from-blue-500 to-emerald-600 hover:from-blue-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/30 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Start Economics Interview
+                {interviewState.isLoading ? (
+                  <div className="flex items-center">
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Preparing Interview...
+                  </div>
+                ) : (
+                  "Start Economics Interview"
+                )}
               </motion.button>
             </motion.div>
           </motion.div>
@@ -292,6 +381,21 @@ export default function EconomicsInterview() {
       animate={{ opacity: 1 }}
       className="flex flex-col h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white overflow-hidden pt-16 md:pt-24 pb-[160px] md:pb-[200px]"
     >
+      {/* Status indicator */}
+      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-30">
+        <div
+          className={`px-4 py-2 rounded-full ${getStatusColor()} text-white text-sm font-medium flex items-center gap-2 shadow-lg`}
+        >
+          {interviewState.connectionStatus === "ready" && (
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+            </span>
+          )}
+          {interviewState.connectionStatus.charAt(0).toUpperCase() + interviewState.connectionStatus.slice(1)}
+        </div>
+      </div>
+
       {/* Main content */}
       <main className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         {/* Main interview area */}
@@ -313,7 +417,7 @@ export default function EconomicsInterview() {
               <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-black/60 backdrop-blur-md px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium z-10">
                 Economics Interviewer
               </div>
-              <div className="w-20 h-20 md:w-32 md:h-32 bg-blue-600 rounded-full flex items-center justify-center text-2xl md:text-4xl">
+              <div className="w-20 h-20 md:w-32 md:h-32 bg-gradient-to-br from-blue-500 to-emerald-700 rounded-full flex items-center justify-center text-2xl md:text-4xl shadow-lg shadow-emerald-500/30">
                 EC
               </div>
             </motion.div>
@@ -328,8 +432,8 @@ export default function EconomicsInterview() {
               <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-black/60 backdrop-blur-md px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium z-10">
                 You
               </div>
-              <div className="w-20 h-20 md:w-32 md:h-32 bg-emerald-600 rounded-full flex items-center justify-center text-2xl md:text-4xl">
-                ME
+              <div className="w-20 h-20 md:w-32 md:h-32 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/30">
+                <User className="w-10 h-10 md:w-16 md:h-16" />
               </div>
               {interviewState.isMicMuted && (
                 <motion.div
@@ -342,6 +446,13 @@ export default function EconomicsInterview() {
               )}
             </motion.div>
           </div>
+
+          {/* Audio visualizer */}
+          {interviewState.isRecording && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 py-2">
+              <canvas ref={audioVisualizerRef} width="600" height="60" className="w-full max-w-md mx-auto" />
+            </motion.div>
+          )}
 
           {/* Latest response - fixed at bottom above controls */}
           <motion.div
@@ -401,7 +512,7 @@ export default function EconomicsInterview() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${interviewState.isRecording
-                  ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
+                  ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30"
                   : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
                 }`}
               disabled={interviewState.interviewComplete}
@@ -418,7 +529,7 @@ export default function EconomicsInterview() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${uiState.showChat
-                  ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
+                  ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30"
                   : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
                 }`}
             >
@@ -430,7 +541,7 @@ export default function EconomicsInterview() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${uiState.showParticipants
-                  ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
+                  ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30"
                   : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
                 }`}
             >
@@ -498,12 +609,12 @@ export default function EconomicsInterview() {
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ delay: index * 0.05 }}
                         className={`rounded-xl p-3 ${index % 2 === 0
-                            ? "bg-blue-500/20 border border-blue-500/30"
-                            : "bg-emerald-500/20 border border-emerald-500/30"
+                            ? "bg-emerald-500/20 border border-emerald-500/30"
+                            : "bg-purple-500/20 border border-purple-500/30"
                           }`}
                       >
                         <p
-                          className={`text-sm font-medium mb-1 ${index % 2 === 0 ? "text-blue-300" : "text-purple-300"
+                          className={`text-sm font-medium mb-1 ${index % 2 === 0 ? "text-emerald-300" : "text-purple-300"
                             }`}
                         >
                           {index % 2 === 0 ? "Interviewer" : "You"}
@@ -523,11 +634,11 @@ export default function EconomicsInterview() {
                       transition={{ delay: 0.1 }}
                       className="flex items-center space-x-4"
                     >
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-lg font-bold shadow-lg shadow-blue-500/30">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-emerald-700 rounded-full flex items-center justify-center text-lg font-bold shadow-lg shadow-emerald-500/30">
                         EC
                       </div>
                       <div>
-                        <p className="font-medium text-blue-300">Economics Interviewer</p>
+                        <p className="font-medium text-emerald-300">Economics Interviewer</p>
                         <p className="text-xs text-gray-400">Host • Active</p>
                       </div>
                     </motion.div>
@@ -538,8 +649,8 @@ export default function EconomicsInterview() {
                       transition={{ delay: 0.2 }}
                       className="flex items-center space-x-4"
                     >
-                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-full flex items-center justify-center text-lg font-bold shadow-lg shadow-emerald-500/30">
-                        ME
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-lg font-bold shadow-lg shadow-purple-500/30">
+                        <User className="w-6 h-6" />
                       </div>
                       <div>
                         <p className="font-medium text-purple-300">You</p>
@@ -572,13 +683,18 @@ export default function EconomicsInterview() {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="bg-gray-800/90 backdrop-blur-md rounded-2xl p-6 max-w-lg w-full border border-gray-700/50 shadow-2xl"
             >
-              <h2 className="text-2xl font-bold text-center mb-4 text-blue-300">Interview Complete</h2>
-              <p className="text-gray-300 mb-6 text-center">
-                Thank you for participating in the Economics practice interview. Your responses have been recorded.
-              </p>
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="h-8 w-8 text-emerald-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-center mb-4 text-white">Interview Complete</h2>
+                <p className="text-gray-300 text-center mb-6">
+                  Thank you for participating in the Economics practice interview. Your responses have been recorded.
+                </p>
+              </div>
 
               <div className="space-y-4">
-                <h3 className="font-medium text-blue-300">Economics Interview Tips:</h3>
+                <h3 className="font-medium text-emerald-300">Economics Interview Tips:</h3>
                 <ul className="list-disc pl-5 space-y-2 text-gray-300">
                   <li>Explain economic concepts with real-world examples</li>
                   <li>Connect theories to current economic policies</li>
@@ -587,7 +703,7 @@ export default function EconomicsInterview() {
                 </ul>
               </div>
 
-              <div className="mt-8 flex justify-center gap-4">
+              <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -600,7 +716,7 @@ export default function EconomicsInterview() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleModalAction("new")}
-                  className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-all duration-300"
+                  className="px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-emerald-600 text-white font-medium shadow-lg shadow-emerald-500/30 transition-all duration-300"
                 >
                   Start New Interview
                 </motion.button>

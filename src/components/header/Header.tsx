@@ -46,7 +46,7 @@ export default function Header() {
         { name: "Coding Practice", href: "/practice" },
       ],
     },
-    { name: "Career Guidance", href: "/guidance" },
+    { name: "Guidance", href: "/guidance" },
     { name: "Resume Enhancer", href: "/resume-enhancer" },
     { name: "Cold Approach", href: "/cold-approach" },
     { name: "Group Discussion", href: "/group-discussion" },
@@ -67,13 +67,26 @@ export default function Header() {
         },
       ],
     },
+    {
+      name: "State Exams",
+      children: [
+        { name: "PCS", href: "/pcs" },
+        { name: "HCS", href: "/hcs" }
+      ],
+    },
+    {
+      name: "AI Tutor",
+      children: [
+        { name: "Class 10th", href: "/tutor/10th" }
+      ],
+    },
   ]
 
   return (
     <motion.header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled
-          ? "bg-gradient-to-r from-purple-50 via-blue-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 backdrop-blur-md shadow-lg"
-          : "bg-transparent"
+        ? "bg-gradient-to-r from-purple-50 via-blue-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 backdrop-blur-md shadow-lg"
+        : "bg-transparent"
         }`}
       initial={{ y: -100 }}
       animate={{ y: 0 }}

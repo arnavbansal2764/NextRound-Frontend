@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
-import { CSATWebSocket, type CSATConfig } from "@/lib/upsc/subject/csat-ws"
+import { CSATWebSocket } from "@/lib/upsc/subject/csat-ws"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Mic,
@@ -15,6 +15,9 @@ import {
   Trophy,
   Trash2,
   BookOpen,
+  User,
+  CheckCircle,
+  Loader2,
 } from "lucide-react"
 
 const difficultyLevels = [
@@ -29,67 +32,124 @@ export default function CSATInterview() {
     isConfigured: false,
     isMicMuted: false,
     interviewComplete: false,
-    connectionStatus: "disconnected" as "disconnected" | "ready" | "complete",
-  });
+    connectionStatus: "disconnected" as "disconnected" | "connected" | "ready" | "complete",
+    isLoading: false,
+  })
 
   const [uiState, setUiState] = useState({
     showChat: false,
     showParticipants: false,
     animateResponse: false,
-  });
+  })
 
-  const [responses, setResponses] = useState<string[]>([]);
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [responses, setResponses] = useState<string[]>([])
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium")
 
   const csatWsRef = useRef<CSATWebSocket | null>(null)
   const responseEndRef = useRef<HTMLDivElement | null>(null)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
+  const audioVisualizerRef = useRef<HTMLCanvasElement | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
 
   // Initialize CSAT WebSocket instance
   useEffect(() => {
-    const ws = new CSATWebSocket("wss://ws3.nextround.tech/upsc-csat");
-    csatWsRef.current = ws;
+    const ws = new CSATWebSocket("wss://ws3.nextround.tech/upsc-csat")
+    csatWsRef.current = ws
 
     const handleMessage = (message: string) => {
-      setResponses(prev => [...prev, message]);
-      setUiState(prev => ({ ...prev, animateResponse: true }));
-      setTimeout(() => setUiState(prev => ({ ...prev, animateResponse: false })), 1000);
-    };
+      setResponses((prev) => [...prev, message])
+      setUiState((prev) => ({ ...prev, animateResponse: true }))
+      setTimeout(() => setUiState((prev) => ({ ...prev, animateResponse: false })), 1000)
+    }
 
     const handleStatusChange = (status: string) => {
-      setInterviewState(prev => ({ ...prev, connectionStatus: status as any }));
+      setInterviewState((prev) => ({ ...prev, connectionStatus: status as any, isLoading: false }))
 
       switch (status) {
         case "ready":
-          setInterviewState(prev => ({ ...prev, isConfigured: true }));
-          startRecording();
-          break;
+          setInterviewState((prev) => ({ ...prev, isConfigured: true }))
+          startRecording()
+          break
         case "complete":
-          setInterviewState(prev => ({ 
-            ...prev, 
-            interviewComplete: true, 
-            isRecording: false 
-          }));
+          setInterviewState((prev) => ({
+            ...prev,
+            interviewComplete: true,
+            isRecording: false,
+          }))
           // Remove the automatic reset here
-          break;
+          break
         case "disconnected":
-          setInterviewState(prev => ({ 
-            ...prev, 
-            isConfigured: false, 
-            isRecording: false 
-          }));
-          break;
+          setInterviewState((prev) => ({
+            ...prev,
+            isConfigured: false,
+            isRecording: false,
+            isLoading: false,
+          }))
+          break
       }
-    };
+    }
 
-    ws.addMessageListener(handleMessage);
-    ws.addStatusChangeListener(handleStatusChange);
+    ws.addMessageListener(handleMessage)
+    ws.addStatusChangeListener(handleStatusChange)
     ws.addErrorListener((error) => {
-      setResponses(prev => [...prev, `Error: ${error}`]);
-    });
+      setResponses((prev) => [...prev, `Error: ${error}`])
+      setInterviewState((prev) => ({ ...prev, isLoading: false }))
+    })
 
-    return () => ws.disconnect();
-  }, []);
+    return () => {
+      ws.disconnect()
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [])
+
+  // Audio visualizer effect
+  useEffect(() => {
+    if (!audioVisualizerRef.current || !interviewState.isRecording || interviewState.isMicMuted) return
+
+    const canvas = audioVisualizerRef.current
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    const drawVisualizer = () => {
+      const width = canvas.width
+      const height = canvas.height
+
+      ctx.clearRect(0, 0, width, height)
+
+      // Draw audio waves (simulated for this demo)
+      ctx.beginPath()
+      ctx.strokeStyle = "#4f46e5"
+      ctx.lineWidth = 2
+
+      const segments = 20
+      const segmentWidth = width / segments
+
+      ctx.moveTo(0, height / 2)
+
+      for (let i = 0; i <= segments; i++) {
+        const x = i * segmentWidth
+        // Generate random heights for the wave effect
+        // In a real implementation, this would use actual audio data
+        const randomFactor = interviewState.isRecording && !interviewState.isMicMuted ? Math.random() * 0.5 + 0.5 : 0.1
+        const y = height / 2 + Math.sin(Date.now() * 0.005 + i * 0.5) * height * 0.2 * randomFactor
+        ctx.lineTo(x, y)
+      }
+
+      ctx.stroke()
+
+      animationFrameRef.current = requestAnimationFrame(drawVisualizer)
+    }
+
+    drawVisualizer()
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [interviewState.isRecording, interviewState.isMicMuted])
 
   useEffect(() => {
     // Auto-scroll to the bottom when new responses arrive
@@ -102,46 +162,48 @@ export default function CSATInterview() {
   }, [responses])
 
   const configureAndStartInterview = async () => {
+    setInterviewState((prev) => ({ ...prev, isLoading: true }))
     try {
-      if (!csatWsRef.current) return;
+      if (!csatWsRef.current) return
 
-      await csatWsRef.current.configure({ difficulty });
+      await csatWsRef.current.configure({ difficulty })
     } catch (error) {
-      console.error("Error configuring CSAT interview:", error);
+      console.error("Error configuring CSAT interview:", error)
+      setInterviewState((prev) => ({ ...prev, isLoading: false }))
     }
   }
 
   const startRecording = async () => {
     try {
-      if (!csatWsRef.current) return;
+      if (!csatWsRef.current) return
 
-      await csatWsRef.current.startRecording();
-      setInterviewState(prev => ({ ...prev, isRecording: true }));
+      await csatWsRef.current.startRecording()
+      setInterviewState((prev) => ({ ...prev, isRecording: true }))
     } catch (error) {
-      console.error("Failed to start recording:", error);
+      console.error("Failed to start recording:", error)
     }
   }
 
   const toggleRecording = () => {
-    if (!csatWsRef.current) return;
+    if (!csatWsRef.current) return
 
     if (interviewState.isRecording) {
-      csatWsRef.current.stopRecording();
-      setInterviewState(prev => ({ ...prev, isRecording: false }));
+      csatWsRef.current.stopRecording()
+      setInterviewState((prev) => ({ ...prev, isRecording: false }))
     } else {
-      startRecording();
+      startRecording()
     }
   }
 
   const toggleMicrophone = () => {
-    if (!csatWsRef.current || !interviewState.isRecording) return;
+    if (!csatWsRef.current || !interviewState.isRecording) return
 
     if (interviewState.isMicMuted) {
-      csatWsRef.current.resumeAudio();
-      setInterviewState(prev => ({ ...prev, isMicMuted: false }));
+      csatWsRef.current.resumeAudio()
+      setInterviewState((prev) => ({ ...prev, isMicMuted: false }))
     } else {
-      csatWsRef.current.pauseAudio();
-      setInterviewState(prev => ({ ...prev, isMicMuted: true }));
+      csatWsRef.current.pauseAudio()
+      setInterviewState((prev) => ({ ...prev, isMicMuted: true }))
     }
   }
 
@@ -152,17 +214,17 @@ export default function CSATInterview() {
       isMicMuted: false,
       interviewComplete: false,
       connectionStatus: "disconnected",
-    });
+      isLoading: false,
+    })
     setUiState({
       showChat: false,
       showParticipants: false,
       animateResponse: false,
-    });
-    setResponses([]);
-    setInterviewState(prev => ({ ...prev, isRecording: false }));
+    })
+    setResponses([])
     if (csatWsRef.current) {
-      csatWsRef.current.disconnect();
-      csatWsRef.current = new CSATWebSocket("ws://localhost:8766");
+      csatWsRef.current.disconnect()
+      csatWsRef.current = new CSATWebSocket("wss://ws3.nextround.tech/upsc-csat")
     }
   }
 
@@ -176,25 +238,42 @@ export default function CSATInterview() {
     setResponses([])
   }
 
-  const toggleChat = () => setUiState(prev => ({ 
-    ...prev, 
-    showChat: !prev.showChat, 
-    showParticipants: false 
-  }));
+  const toggleChat = () =>
+    setUiState((prev) => ({
+      ...prev,
+      showChat: !prev.showChat,
+      showParticipants: false,
+    }))
 
-  const toggleParticipants = () => setUiState(prev => ({ 
-    ...prev, 
-    showParticipants: !prev.showParticipants, 
-    showChat: false 
-  }));
+  const toggleParticipants = () =>
+    setUiState((prev) => ({
+      ...prev,
+      showParticipants: !prev.showParticipants,
+      showChat: false,
+    }))
 
-  const handleModalAction = (action: 'close' | 'new') => {
-    resetInterview();
-    if (action === 'new') {
+  const handleModalAction = (action: "close" | "new") => {
+    resetInterview()
+    if (action === "new") {
       // Additional logic for starting a new interview if needed
-      configureAndStartInterview();
+      configureAndStartInterview()
     }
-  };
+  }
+
+  const getStatusColor = () => {
+    switch (interviewState.connectionStatus) {
+      case "connected":
+        return "bg-blue-500"
+      case "ready":
+        return "bg-green-500"
+      case "complete":
+        return "bg-purple-500"
+      case "disconnected":
+        return "bg-red-500"
+      default:
+        return "bg-gray-500"
+    }
+  }
 
   if (!interviewState.isConfigured) {
     return (
@@ -273,9 +352,17 @@ export default function CSATInterview() {
                 onClick={configureAndStartInterview}
                 whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(59, 130, 246, 0.5)" }}
                 whileTap={{ scale: 0.95 }}
-                className="px-8 py-4 rounded-full font-bold text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg shadow-blue-500/30 transition-all duration-300"
+                disabled={interviewState.isLoading}
+                className="px-8 py-4 rounded-full font-bold text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg shadow-blue-500/30 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Start CSAT Interview
+                {interviewState.isLoading ? (
+                  <div className="flex items-center">
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Preparing Interview...
+                  </div>
+                ) : (
+                  "Start CSAT Interview"
+                )}
               </motion.button>
             </motion.div>
           </motion.div>
@@ -290,6 +377,21 @@ export default function CSATInterview() {
       animate={{ opacity: 1 }}
       className="flex flex-col h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white overflow-hidden pt-16 md:pt-24 pb-[160px] md:pb-[200px]"
     >
+      {/* Status indicator */}
+      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-30">
+        <div
+          className={`px-4 py-2 rounded-full ${getStatusColor()} text-white text-sm font-medium flex items-center gap-2 shadow-lg`}
+        >
+          {interviewState.connectionStatus === "ready" && (
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+            </span>
+          )}
+          {interviewState.connectionStatus.charAt(0).toUpperCase() + interviewState.connectionStatus.slice(1)}
+        </div>
+      </div>
+
       {/* Main content */}
       <main className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         {/* Main interview area */}
@@ -311,7 +413,7 @@ export default function CSATInterview() {
               <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-black/60 backdrop-blur-md px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium z-10">
                 CSAT Interviewer
               </div>
-              <div className="w-20 h-20 md:w-32 md:h-32 bg-blue-600 rounded-full flex items-center justify-center text-2xl md:text-4xl">
+              <div className="w-20 h-20 md:w-32 md:h-32 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-2xl md:text-4xl shadow-lg shadow-blue-500/30">
                 CS
               </div>
             </motion.div>
@@ -326,8 +428,8 @@ export default function CSATInterview() {
               <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-black/60 backdrop-blur-md px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium z-10">
                 You
               </div>
-              <div className="w-20 h-20 md:w-32 md:h-32 bg-purple-600 rounded-full flex items-center justify-center text-2xl md:text-4xl">
-                ME
+              <div className="w-20 h-20 md:w-32 md:h-32 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/30">
+                <User className="w-10 h-10 md:w-16 md:h-16" />
               </div>
               {interviewState.isMicMuted && (
                 <motion.div
@@ -340,6 +442,13 @@ export default function CSATInterview() {
               )}
             </motion.div>
           </div>
+
+          {/* Audio visualizer */}
+          {interviewState.isRecording && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 py-2">
+              <canvas ref={audioVisualizerRef} width="600" height="60" className="w-full max-w-md mx-auto" />
+            </motion.div>
+          )}
 
           {/* Latest response - fixed at bottom above controls */}
           <motion.div
@@ -385,7 +494,11 @@ export default function CSATInterview() {
                 }`}
               disabled={!interviewState.isRecording || interviewState.interviewComplete}
             >
-              {interviewState.isMicMuted ? <MicOff className="w-5 h-5 md:w-6 md:h-6" /> : <Mic className="w-5 h-5 md:w-6 md:h-6" />}
+              {interviewState.isMicMuted ? (
+                <MicOff className="w-5 h-5 md:w-6 md:h-6" />
+              ) : (
+                <Mic className="w-5 h-5 md:w-6 md:h-6" />
+              )}
             </motion.button>
 
             <motion.button
@@ -398,7 +511,11 @@ export default function CSATInterview() {
                 }`}
               disabled={interviewState.interviewComplete}
             >
-              {interviewState.isRecording ? <Pause className="w-5 h-5 md:w-6 md:h-6" /> : <Play className="w-5 h-5 md:w-6 md:h-6" />}
+              {interviewState.isRecording ? (
+                <Pause className="w-5 h-5 md:w-6 md:h-6" />
+              ) : (
+                <Play className="w-5 h-5 md:w-6 md:h-6" />
+              )}
             </motion.button>
 
             <motion.button
@@ -457,7 +574,9 @@ export default function CSATInterview() {
               className="w-full md:w-80 bg-gray-800/50 backdrop-blur-md border-l border-gray-700/50 flex flex-col shadow-xl absolute md:relative inset-0 z-20 md:z-0 pb-[160px]"
             >
               <div className="p-4 border-b border-gray-700/50 flex justify-between items-center">
-                <h2 className="font-medium text-blue-300">{uiState.showChat ? "Interview Transcript" : "Participants"}</h2>
+                <h2 className="font-medium text-blue-300">
+                  {uiState.showChat ? "Interview Transcript" : "Participants"}
+                </h2>
                 <motion.button
                   onClick={uiState.showChat ? toggleChat : toggleParticipants}
                   whileHover={{ scale: 1.1 }}
@@ -525,11 +644,13 @@ export default function CSATInterview() {
                       className="flex items-center space-x-4"
                     >
                       <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-lg font-bold shadow-lg shadow-purple-500/30">
-                        ME
+                        <User className="w-6 h-6" />
                       </div>
                       <div>
                         <p className="font-medium text-purple-300">You</p>
-                        <p className="text-xs text-gray-400">{interviewState.isMicMuted ? "Microphone muted" : "Active"}</p>
+                        <p className="text-xs text-gray-400">
+                          {interviewState.isMicMuted ? "Microphone muted" : "Active"}
+                        </p>
                       </div>
                     </motion.div>
                   </div>
@@ -556,10 +677,15 @@ export default function CSATInterview() {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="bg-gray-800/90 backdrop-blur-md rounded-2xl p-6 max-w-lg w-full border border-gray-700/50 shadow-2xl"
             >
-              <h2 className="text-2xl font-bold text-center mb-4 text-blue-300">Interview Complete</h2>
-              <p className="text-gray-300 mb-6 text-center">
-                Thank you for participating in the CSAT practice interview. Your responses have been recorded.
-              </p>
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="h-8 w-8 text-green-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-center mb-4 text-white">Interview Complete</h2>
+                <p className="text-gray-300 text-center mb-6">
+                  Thank you for participating in the CSAT practice interview. Your responses have been recorded.
+                </p>
+              </div>
 
               <div className="space-y-4">
                 <h3 className="font-medium text-blue-300">Interview Tips:</h3>
@@ -571,11 +697,11 @@ export default function CSATInterview() {
                 </ul>
               </div>
 
-              <div className="mt-8 flex justify-center gap-4">
+              <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => handleModalAction('close')}
+                  onClick={() => handleModalAction("close")}
                   className="px-6 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-medium transition-all duration-300"
                 >
                   Close
@@ -583,8 +709,8 @@ export default function CSATInterview() {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => handleModalAction('new')}
-                  className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-all duration-300"
+                  onClick={() => handleModalAction("new")}
+                  className="px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium shadow-lg shadow-blue-500/30 transition-all duration-300"
                 >
                   Start New Interview
                 </motion.button>
