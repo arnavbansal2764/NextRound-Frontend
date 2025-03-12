@@ -15,9 +15,12 @@ import {
   PenTool,
   FileText,
   Clock,
-  CheckCircle2,
+  Copy,
+  UserPlus,
+  Plus,
+  LogIn,
 } from "lucide-react"
-import { GroupDiscussionWebSocket, type GDConfig, type GDMessage } from "@/lib/gd-ws"
+import { GroupDiscussionWebSocket, type DiscussionMessage, type GroupDiscussionConfig } from "@/lib/gd/gd-multiple"
 
 const topicSuggestions = [
   "Is AI a threat to human jobs?",
@@ -46,13 +49,18 @@ const features = [
     title: "Insightful Analysis",
     description: "Get a comprehensive summary and analysis of your discussion points",
   },
+  {
+    icon: UserPlus,
+    title: "Multi-User Support",
+    description: "Invite others to join your discussion with a simple code",
+  },
 ]
 
 export default function GroupDiscussion() {
   // State management
   const [isRecording, setIsRecording] = useState<boolean>(false)
   const [isConfigured, setIsConfigured] = useState<boolean>(false)
-  const [messages, setMessages] = useState<GDMessage[]>([])
+  const [messages, setMessages] = useState<DiscussionMessage[]>([])
   const [topic, setTopic] = useState<string>("")
   const [userName, setUserName] = useState<string>("")
   const [discussionComplete, setDiscussionComplete] = useState<boolean>(false)
@@ -65,27 +73,53 @@ export default function GroupDiscussion() {
   const [showChat, setShowChat] = useState<boolean>(false)
   const [showParticipants, setShowParticipants] = useState<boolean>(false)
   const [activeStep, setActiveStep] = useState<number>(0)
-  const [currentBotMessage, setCurrentBotMessage] = useState<GDMessage | null>(null)
+  const [currentBotMessage, setCurrentBotMessage] = useState<DiscussionMessage | null>(null)
   const [discussionStage, setDiscussionStage] = useState<"setup" | "active" | "analysis" | "complete">("setup")
+  const [joinMode, setJoinMode] = useState<"create" | "join">("create")
+  const [discussionCode, setDiscussionCode] = useState<string>("")
+  const [inputCode, setInputCode] = useState<string>("")
+  const [activeParticipants, setActiveParticipants] = useState<number>(0)
+  const [participants, setParticipants] = useState<string[]>([])
+  const [codeCopied, setCodeCopied] = useState<boolean>(false)
 
   // Refs
   const gdWsRef = useRef<GroupDiscussionWebSocket | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const speakingTimerRef = useRef<NodeJS.Timeout | null>(null)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
+  const copyTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Initialize WebSocket instance
   useEffect(() => {
-    gdWsRef.current = new GroupDiscussionWebSocket("wss://ws2.nextround.tech/ws/group-discussion")
+    gdWsRef.current = new GroupDiscussionWebSocket("wss://ws3.nextround.tech/gd-multi")
 
     // Set up event listeners
-    gdWsRef.current.addMessageListener((message) => {
-      setMessages((prev) => [...prev, message])
+    gdWsRef.current.addMessageListener((name:any, content:any) => {
+      console.log(`Received message from ${name}: ${content}`)
+      setMessages((prev) => {
+        // Check if the previous message was from the same user
+        if (prev.length > 0 && prev[prev.length - 1].name === name) {
+          // Create a copy of the previous messages array
+          const updatedMessages = [...prev]
+          // Get the last message
+          const lastMessage = updatedMessages[updatedMessages.length - 1]
+          // Update the last message by merging the content
+          updatedMessages[updatedMessages.length - 1] = {
+            ...lastMessage,
+            content: `${lastMessage.content} ${content}`,
+            timestamp: Date.now(), // Update timestamp to current time
+          }
+          return updatedMessages
+        } else {
+          // Add as a new message if it's from a different user
+          return [...prev, { name, content, timestamp: Date.now() }]
+        }
+      })
 
-      // Only update current bot message if it's from a bot
-      if (message.name !== userName && message.name !== "System") {
-        setCurrentBotMessage(message)
-        setCurrentSpeaker(message.name)
+      // Only update current bot message if it's from a bot or another user
+      if (name !== userName && name !== "System") {
+        setCurrentBotMessage({ name, content, timestamp: Date.now() })
+        setCurrentSpeaker(name)
 
         // Visual indicator for bot speaking
         setIsSpeaking(true)
@@ -101,18 +135,21 @@ export default function GroupDiscussion() {
       }
     })
 
-    gdWsRef.current.addStatusChangeListener((status) => {
+    gdWsRef.current.addStatusChangeListener((status, details) => {
       setConnectionStatus(status)
 
-      if (status === "ready") {
+      if (status === "created" || status === "joined") {
         setIsConfigured(true)
         setDiscussionStage("active")
+        setDiscussionCode(details?.code || "")
+        if (details?.topic) {
+          setTopic(details.topic)
+        }
         // Auto-start recording when ready
         startRecording()
-      } else if (status === "complete") {
-        setDiscussionComplete(true)
-        setDiscussionStage("complete")
-        setIsRecording(false)
+      } else if (status === "analyzing") {
+        setIsAnalysisRequested(true)
+        setDiscussionStage("analysis")
       } else if (status === "disconnected") {
         setIsConfigured(false)
         setIsRecording(false)
@@ -123,25 +160,51 @@ export default function GroupDiscussion() {
         setIsMicMuted(true)
       } else if (status === "paused") {
         setIsRecording(false)
-      } else if (status === "analyzing") {
-        setDiscussionStage("analysis")
       }
     })
 
     gdWsRef.current.addErrorListener((error) => {
       console.error("GD Error:", error)
       // Add error to messages
-      setMessages((prev) => [...prev, { name: "System", content: `Error: ${error}` }])
+      setMessages((prev) => [...prev, { name: "System", content: `Error: ${error}`, timestamp: Date.now() }])
     })
 
-    gdWsRef.current.addAnalysisListener((message, history) => {
-      setSummary(message)
+    gdWsRef.current.addParticipantListener((userName, isJoining, activeCount) => {
+      const action = isJoining ? "joined" : "left"
+      setMessages((prev) => [
+        ...prev,
+        {
+          name: "System",
+          content: `${userName} has ${action} the discussion.`,
+          timestamp: Date.now(),
+        },
+      ])
+      setActiveParticipants(activeCount)
+
+      // Update participants list
+      if (isJoining) {
+        setParticipants((prev) => [...prev, userName])
+      } else {
+        setParticipants((prev) => prev.filter((name) => name !== userName))
+      }
+    })
+
+    gdWsRef.current.addAnalysisListener((analysis, history) => {
+      setSummary(analysis)
       setDiscussionComplete(true)
       setDiscussionStage("complete")
       setIsAnalysisRequested(false)
       if (history) {
-        // Update with complete message history if provided
-        setMessages(history)
+        // Add any missing messages from history
+        setMessages((prev) => {
+          // Create a set of existing message combinations (name+content)
+          const existingMessages = new Set(prev.map((m) => `${m.name}:${m.content}`))
+
+          // Filter history to only include messages not already in our state
+          const newMessages = history.filter((m) => !existingMessages.has(`${m.name}:${m.content}`))
+
+          return [...prev, ...newMessages]
+        })
       }
     })
 
@@ -149,6 +212,10 @@ export default function GroupDiscussion() {
       // Cleanup timers
       if (speakingTimerRef.current) {
         clearTimeout(speakingTimerRef.current)
+      }
+
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current)
       }
 
       // Disconnect WebSocket
@@ -159,7 +226,7 @@ export default function GroupDiscussion() {
   }, [userName])
 
   const configureAndStartDiscussion = async () => {
-    if (!topic.trim()) {
+    if (joinMode === "create" && !topic.trim()) {
       alert("Please provide a topic for the group discussion")
       return
     }
@@ -169,10 +236,22 @@ export default function GroupDiscussion() {
       return
     }
 
+    if (joinMode === "join" && !inputCode.trim()) {
+      alert("Please enter a valid discussion code to join")
+      return
+    }
+
     try {
-      const config: GDConfig = {
-        topic: topic,
-        user_name: userName,
+      const config: GroupDiscussionConfig = {
+        action: joinMode,
+        user_name: userName.trim(),
+      }
+
+      // Add topic or code based on mode
+      if (joinMode === "create") {
+        config.topic = topic.trim()
+      } else {
+        config.code = inputCode.trim()
       }
 
       if (gdWsRef.current) {
@@ -220,16 +299,11 @@ export default function GroupDiscussion() {
     }
   }
 
-  // Update the requestAnalysis function to simulate receiving the analysis response
-  // This will allow us to test the analysis functionality without an actual WebSocket connection
-
   const requestAnalysis = () => {
     if (gdWsRef.current) {
       gdWsRef.current.requestAnalysis()
       setIsAnalysisRequested(true)
       setDiscussionStage("analysis")
-      // The actual response will be handled by the WebSocket's analysisListener
-      // which was set up in the useEffect hook
     }
   }
 
@@ -251,6 +325,25 @@ export default function GroupDiscussion() {
     setShowChat(false)
   }
 
+  const copyDiscussionCode = () => {
+    if (discussionCode) {
+      navigator.clipboard
+        .writeText(discussionCode)
+        .then(() => {
+          setCodeCopied(true)
+          if (copyTimerRef.current) {
+            clearTimeout(copyTimerRef.current)
+          }
+          copyTimerRef.current = setTimeout(() => {
+            setCodeCopied(false)
+          }, 2000)
+        })
+        .catch((err) => {
+          console.error("Could not copy code:", err)
+        })
+    }
+  }
+
   const getBotColor = (botName: string) => {
     if (botName === "Bot 1") return "bg-blue-100 text-blue-900"
     if (botName === "Bot 2") return "bg-purple-100 text-purple-900"
@@ -265,6 +358,7 @@ export default function GroupDiscussion() {
     if (botName === "Bot 2") return "from-purple-500/20 to-purple-700/20"
     if (botName === "Bot 3") return "from-orange-500/20 to-orange-700/20"
     if (botName === "Moderator") return "from-gray-500/20 to-gray-700/20"
+    if (botName === "System") return "from-red-500/20 to-red-700/20"
     return "from-gray-500/20 to-gray-700/20"
   }
 
@@ -273,6 +367,7 @@ export default function GroupDiscussion() {
     if (botName === "Bot 2") return "text-purple-300"
     if (botName === "Bot 3") return "text-orange-300"
     if (botName === "Moderator") return "text-gray-300"
+    if (botName === "System") return "text-red-300"
     return "text-gray-300"
   }
 
@@ -285,6 +380,11 @@ export default function GroupDiscussion() {
     setIsConfigured(false)
     setActiveStep(0)
     setTopic("")
+    setDiscussionCode("")
+    setInputCode("")
+    setJoinMode("create")
+    setParticipants([])
+    setActiveParticipants(0)
   }
 
   if (discussionStage === "setup") {
@@ -294,6 +394,8 @@ export default function GroupDiscussion() {
         animate={{ opacity: 1 }}
         className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white pt-10"
       >
+        
+
         <main className="flex-1 flex items-center justify-center p-4 md:p-6">
           <motion.div
             initial={{ y: 20, opacity: 0 }}
@@ -301,59 +403,51 @@ export default function GroupDiscussion() {
             transition={{ delay: 0.3 }}
             className="w-full max-w-4xl"
           >
-            {/* Stepper */}
-            <div className="mb-8">
-              <div className="flex justify-between items-center">
-                {["Your Info", "Discussion Topic", "Ready to Start"].map((step, index) => (
-                  <div key={index} className="flex flex-col items-center">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all duration-300 ${activeStep >= index ? "bg-green-500 text-white" : "bg-gray-700 text-gray-400"
-                        }`}
-                    >
-                      {index + 1}
-                    </div>
-                    <span className={`text-sm ${activeStep >= index ? "text-white" : "text-gray-400"}`}>{step}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="relative mt-2">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gray-700"></div>
-                <motion.div
-                  className="absolute top-0 left-0 h-1 bg-green-500"
-                  initial={{ width: "0%" }}
-                  animate={{ width: `${(activeStep / 2) * 100}%` }}
-                  transition={{ duration: 0.5 }}
-                ></motion.div>
+            {/* Join or Create Selection */}
+            <div className="mb-8 flex flex-col items-center">
+              <h2 className="text-2xl font-bold mb-6 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-500">
+                Welcome to Group Discussion
+              </h2>
+
+              <div className="flex space-x-4 w-full max-w-md">
+                <motion.button
+                  onClick={() => setJoinMode("create")}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`flex-1 px-6 py-3 rounded-lg font-medium text-white transition-all duration-300 flex items-center justify-center ${joinMode === "create"
+                      ? "bg-gradient-to-r from-blue-500 to-green-500 shadow-lg shadow-blue-500/20"
+                      : "bg-gray-700 hover:bg-gray-600"
+                    }`}
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Create
+                </motion.button>
+                <motion.button
+                  onClick={() => setJoinMode("join")}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`flex-1 px-6 py-3 rounded-lg font-medium text-white transition-all duration-300 flex items-center justify-center ${joinMode === "join"
+                      ? "bg-gradient-to-r from-blue-500 to-green-500 shadow-lg shadow-blue-500/20"
+                      : "bg-gray-700 hover:bg-gray-600"
+                    }`}
+                >
+                  <LogIn className="w-5 h-5 mr-2" />
+                  Join
+                </motion.button>
               </div>
             </div>
 
             <AnimatePresence mode="wait">
-              {activeStep === 0 && (
+              {joinMode === "create" ? (
                 <motion.div
-                  key="step1"
+                  key="create-form"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3 }}
                   className="bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-gray-700/50"
                 >
-                  <h2 className="text-2xl font-bold mb-6 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-500">
-                    Welcome to Group Discussion
-                  </h2>
-
-                  <div className="mb-8">
-                    <div className="p-4 bg-blue-900/20 backdrop-blur-md rounded-xl border border-blue-700/30 mb-6">
-                      <h3 className="text-lg font-medium text-blue-300 mb-2 flex items-center">
-                        <FileText className="w-5 h-5 mr-2" />
-                        About Group Discussion
-                      </h3>
-                      <p className="text-gray-300 text-sm">
-                        Group Discussion is an interactive platform where you can engage in meaningful conversations
-                        with AI participants. Simply speak into your microphone, and our AI participants will respond to
-                        your points, creating a dynamic discussion environment.
-                      </p>
-                    </div>
-
+                  <div className="mb-6">
                     <label htmlFor="user-name" className="block text-sm font-medium text-gray-300 mb-2">
                       Your Name
                     </label>
@@ -367,36 +461,9 @@ export default function GroupDiscussion() {
                     />
                   </div>
 
-                  <div className="flex justify-end">
-                    <motion.button
-                      onClick={() => setActiveStep(1)}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-6 py-3 rounded-lg font-medium text-white bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 shadow-lg shadow-blue-500/20 transition-all duration-300"
-                      disabled={!userName.trim()}
-                    >
-                      Next
-                    </motion.button>
-                  </div>
-                </motion.div>
-              )}
-
-              {activeStep === 1 && (
-                <motion.div
-                  key="step2"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-gray-700/50"
-                >
-                  <h2 className="text-2xl font-bold mb-6 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-500">
-                    Choose a Discussion Topic
-                  </h2>
-
                   <div className="mb-6">
                     <label htmlFor="topic" className="block text-sm font-medium text-gray-300 mb-2">
-                      Custom Topic
+                      Discussion Topic
                     </label>
                     <div className="flex">
                       <input
@@ -437,42 +504,7 @@ export default function GroupDiscussion() {
                     </div>
                   </div>
 
-                  <div className="flex justify-between">
-                    <motion.button
-                      onClick={() => setActiveStep(0)}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-6 py-3 rounded-lg font-medium text-white bg-gray-700 hover:bg-gray-600 transition-all duration-300"
-                    >
-                      Back
-                    </motion.button>
-                    <motion.button
-                      onClick={() => setActiveStep(2)}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-6 py-3 rounded-lg font-medium text-white bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 shadow-lg shadow-blue-500/20 transition-all duration-300"
-                      disabled={!topic.trim()}
-                    >
-                      Next
-                    </motion.button>
-                  </div>
-                </motion.div>
-              )}
-
-              {activeStep === 2 && (
-                <motion.div
-                  key="step3"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-gray-700/50"
-                >
-                  <h2 className="text-2xl font-bold mb-6 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-500">
-                    Ready to Start Your Discussion
-                  </h2>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     {features.map((feature, index) => (
                       <motion.div
                         key={index}
@@ -482,58 +514,89 @@ export default function GroupDiscussion() {
                           y: 0,
                           transition: { delay: index * 0.1 + 0.2 },
                         }}
-                        className="bg-gray-900/50 backdrop-blur-md rounded-xl p-5 border border-gray-700/50 flex flex-col items-center text-center"
+                        className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 border border-gray-700/50 flex items-start"
                       >
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500/20 to-green-500/20 flex items-center justify-center mb-4">
-                          <feature.icon className="w-6 h-6 text-green-400" />
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/20 to-green-500/20 flex items-center justify-center mr-3 mt-1">
+                          <feature.icon className="w-5 h-5 text-green-400" />
                         </div>
-                        <h3 className="text-lg font-medium text-white mb-2">{feature.title}</h3>
-                        <p className="text-sm text-gray-400">{feature.description}</p>
+                        <div>
+                          <h3 className="text-md font-medium text-white mb-1">{feature.title}</h3>
+                          <p className="text-xs text-gray-400">{feature.description}</p>
+                        </div>
                       </motion.div>
                     ))}
                   </div>
 
-                  <div className="bg-gray-900/50 backdrop-blur-md rounded-xl p-5 border border-gray-700/50 mb-6">
-                    <div className="flex items-start">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/20 to-green-500/20 flex items-center justify-center mr-4 mt-1">
-                        <Sparkles className="w-5 h-5 text-green-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-medium text-white mb-2">Discussion Summary</h3>
-                        <div className="space-y-2 text-sm text-gray-400">
-                          <p className="flex items-center">
-                            <CheckCircle2 className="w-4 h-4 mr-2 text-green-400" />
-                            Your name: <span className="text-green-400 font-medium ml-1">{userName}</span>
-                          </p>
-                          <p className="flex items-center">
-                            <CheckCircle2 className="w-4 h-4 mr-2 text-green-400" />
-                            Discussion topic: <span className="text-green-400 font-medium ml-1">{topic}</span>
-                          </p>
-                          <p className="flex items-center">
-                            <CheckCircle2 className="w-4 h-4 mr-2 text-green-400" />
-                            AI participants: Bot 1, Bot 2, Bot 3, and Moderator
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between">
-                    <motion.button
-                      onClick={() => setActiveStep(1)}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-6 py-3 rounded-lg font-medium text-white bg-gray-700 hover:bg-gray-600 transition-all duration-300"
-                    >
-                      Back
-                    </motion.button>
+                  <div className="flex justify-center">
                     <motion.button
                       onClick={configureAndStartDiscussion}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       className="px-6 py-3 rounded-lg font-medium text-white bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 shadow-lg shadow-blue-500/20 transition-all duration-300"
+                      disabled={!userName.trim() || !topic.trim()}
                     >
-                      Start Discussion
+                      Create & Start Discussion
+                    </motion.button>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="join-form"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-gray-700/50"
+                >
+                  <div className="mb-6">
+                    <label htmlFor="user-name-join" className="block text-sm font-medium text-gray-300 mb-2">
+                      Your Name
+                    </label>
+                    <input
+                      type="text"
+                      id="user-name-join"
+                      value={userName}
+                      onChange={(e) => setUserName(e.target.value)}
+                      className="w-full p-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-white"
+                      placeholder="Enter your name"
+                    />
+                  </div>
+
+                  <div className="mb-8">
+                    <label htmlFor="discussion-code" className="block text-sm font-medium text-gray-300 mb-2">
+                      Discussion Code
+                    </label>
+                    <input
+                      type="text"
+                      id="discussion-code"
+                      value={inputCode}
+                      onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                      className="w-full p-3 bg-gray-900/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-white"
+                      placeholder="Enter the discussion code (e.g., ABC123)"
+                    />
+                  </div>
+
+                  <div className="p-4 bg-blue-900/20 backdrop-blur-md rounded-xl border border-blue-700/30 mb-8">
+                    <h3 className="text-lg font-medium text-blue-300 mb-2 flex items-center">
+                      <FileText className="w-5 h-5 mr-2" />
+                      About Joining a Discussion
+                    </h3>
+                    <p className="text-gray-300 text-sm">
+                      Enter the discussion code provided by the discussion creator. Once you join, you'll be able to
+                      participate in the conversation using your microphone. Your speech will be transcribed in
+                      real-time for all participants to see.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-center">
+                    <motion.button
+                      onClick={configureAndStartDiscussion}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="px-6 py-3 rounded-lg font-medium text-white bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 shadow-lg shadow-blue-500/20 transition-all duration-300"
+                      disabled={!userName.trim() || !inputCode.trim()}
+                    >
+                      Join Discussion
                     </motion.button>
                   </div>
                 </motion.div>
@@ -541,6 +604,7 @@ export default function GroupDiscussion() {
             </AnimatePresence>
           </motion.div>
         </main>
+
       </motion.div>
     )
   }
@@ -552,16 +616,7 @@ export default function GroupDiscussion() {
         animate={{ opacity: 1 }}
         className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white pt-10"
       >
-        <header className="bg-black/30 backdrop-blur-md py-4 px-6 border-b border-gray-700/50">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-500">
-              Group Discussion
-            </h1>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-400">Analysis in progress</span>
-            </div>
-          </div>
-        </header>
+        
 
         <main className="flex-1 flex items-center justify-center p-4 md:p-6">
           <motion.div
@@ -644,7 +699,7 @@ export default function GroupDiscussion() {
           </motion.div>
         </main>
 
-      
+    
       </motion.div>
     )
   }
@@ -656,16 +711,7 @@ export default function GroupDiscussion() {
         animate={{ opacity: 1 }}
         className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white pt-10"
       >
-        <header className="bg-black/30 backdrop-blur-md py-4 px-6 border-b border-gray-700/50">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-500">
-              Group Discussion
-            </h1>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-400">Discussion Complete</span>
-            </div>
-          </div>
-        </header>
+        
 
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
           <div className="max-w-4xl mx-auto">
@@ -706,26 +752,19 @@ export default function GroupDiscussion() {
                     <p className="text-sm font-medium text-gray-300">{userName}</p>
                   </div>
 
-                  <div className="bg-gray-800/50 backdrop-blur-md rounded-xl p-3 border border-gray-700/50 flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-700/20 flex items-center justify-center text-lg font-bold mb-2">
-                      B1
-                    </div>
-                    <p className="text-sm font-medium text-gray-300">Bot 1</p>
-                  </div>
-
-                  <div className="bg-gray-800/50 backdrop-blur-md rounded-xl p-3 border border-gray-700/50 flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500/20 to-purple-700/20 flex items-center justify-center text-lg font-bold mb-2">
-                      B2
-                    </div>
-                    <p className="text-sm font-medium text-gray-300">Bot 2</p>
-                  </div>
-
-                  <div className="bg-gray-800/50 backdrop-blur-md rounded-xl p-3 border border-gray-700/50 flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500/20 to-orange-700/20 flex items-center justify-center text-lg font-bold mb-2">
-                      M
-                    </div>
-                    <p className="text-sm font-medium text-gray-300">Moderator</p>
-                  </div>
+                  {participants
+                    .filter((name) => name !== userName)
+                    .map((participant, index) => (
+                      <div
+                        key={index}
+                        className="bg-gray-800/50 backdrop-blur-md rounded-xl p-3 border border-gray-700/50 flex flex-col items-center"
+                      >
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-700/20 flex items-center justify-center text-lg font-bold mb-2">
+                          {participant.substring(0, 1).toUpperCase()}
+                        </div>
+                        <p className="text-sm font-medium text-gray-300">{participant}</p>
+                      </div>
+                    ))}
                 </div>
               </div>
 
@@ -746,6 +785,11 @@ export default function GroupDiscussion() {
                         <p className={`text-sm font-medium ${getBotTextColor(msg.name)}`}>
                           {msg.name === userName ? "You" : msg.name}
                         </p>
+                        {msg.timestamp && (
+                          <span className="text-xs text-gray-500 ml-2">
+                            {new Date(msg.timestamp).toLocaleTimeString()}
+                          </span>
+                        )}
                       </div>
                       <p className="text-gray-300 text-sm pl-10">{msg.content}</p>
                     </div>
@@ -767,7 +811,7 @@ export default function GroupDiscussion() {
           </div>
         </main>
 
-     
+       
       </motion.div>
     )
   }
@@ -778,7 +822,7 @@ export default function GroupDiscussion() {
       animate={{ opacity: 1 }}
       className="flex flex-col h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white overflow-hidden pt-10"
     >
-      {/* <header className="bg-black/30 backdrop-blur-md py-4 px-6 border-b border-gray-700/50 flex justify-between items-center">
+      <header className="bg-black/30 backdrop-blur-md py-4 px-6 border-b border-gray-700/50 flex justify-between items-center">
         <div className="flex items-center">
           <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-500 mr-4">
             Group Discussion
@@ -794,17 +838,42 @@ export default function GroupDiscussion() {
           </div>
         </div>
 
+        <div className="flex items-center space-x-4">
+          <div className="hidden md:flex items-center space-x-2 bg-gray-800/50 backdrop-blur-md rounded-full px-3 py-1 border border-gray-700/50">
+            <Users className="w-4 h-4 text-blue-400" />
+            <span className="text-sm text-gray-300">{activeParticipants} participants</span>
+          </div>
+
+          <div
+            className="flex items-center space-x-2 bg-gray-800/50 backdrop-blur-md rounded-full px-3 py-1 border border-gray-700/50 cursor-pointer"
+            onClick={copyDiscussionCode}
+          >
+            <span className="text-sm text-gray-300">Code: {discussionCode}</span>
+            <Copy className="w-4 h-4 text-gray-400" />
+            {codeCopied && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="absolute right-0 top-full mt-1 bg-green-500 text-white text-xs px-2 py-1 rounded"
+              >
+                Copied!
+              </motion.span>
+            )}
+          </div>
+        </div>
+
         {isSpeaking && currentSpeaker && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="px-3 py-1 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 text-sm animate-pulse"
+            className="px-3 py-1 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 text-sm animate-pulse absolute top-16 left-1/2 transform -translate-x-1/2"
           >
             {currentSpeaker} speaking...
           </motion.div>
         )}
-      </header> */}
+      </header>
 
       <main className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         {/* Main discussion area */}
@@ -866,29 +935,20 @@ export default function GroupDiscussion() {
                   <p className="text-xs text-gray-500">{isMicMuted ? "Muted" : "Speaking"}</p>
                 </div>
 
-                <div className="bg-gray-800/50 backdrop-blur-md rounded-xl p-4 border border-gray-700/50 flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-700/20 flex items-center justify-center text-xl font-bold mb-2">
-                    B1
-                  </div>
-                  <p className="text-sm font-medium text-gray-300">Bot 1</p>
-                  <p className="text-xs text-gray-500">AI Participant</p>
-                </div>
-
-                <div className="bg-gray-800/50 backdrop-blur-md rounded-xl p-4 border border-gray-700/50 flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500/20 to-purple-700/20 flex items-center justify-center text-xl font-bold mb-2">
-                    B2
-                  </div>
-                  <p className="text-sm font-medium text-gray-300">Bot 2</p>
-                  <p className="text-xs text-gray-500">AI Participant</p>
-                </div>
-
-                <div className="bg-gray-800/50 backdrop-blur-md rounded-xl p-4 border border-gray-700/50 flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500/20 to-orange-700/20 flex items-center justify-center text-xl font-bold mb-2">
-                    M
-                  </div>
-                  <p className="text-sm font-medium text-gray-300">Moderator</p>
-                  <p className="text-xs text-gray-500">Discussion Lead</p>
-                </div>
+                {participants
+                  .filter((name) => name !== userName)
+                  .map((participant, index) => (
+                    <div
+                      key={index}
+                      className="bg-gray-800/50 backdrop-blur-md rounded-xl p-4 border border-gray-700/50 flex flex-col items-center"
+                    >
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-700/20 flex items-center justify-center text-xl font-bold mb-2">
+                        {participant.substring(0, 1).toUpperCase()}
+                      </div>
+                      <p className="text-sm font-medium text-gray-300">{participant}</p>
+                      <p className="text-xs text-gray-500">Participant</p>
+                    </div>
+                  ))}
               </motion.div>
 
               {/* Latest messages */}
@@ -922,7 +982,14 @@ export default function GroupDiscussion() {
                                   : "bg-gray-700/50 border border-gray-600/30 text-gray-300"
                               }`}
                           >
-                            <p className="text-xs font-bold mb-1">{msg.name === userName ? "You" : msg.name}</p>
+                            <div className="flex justify-between items-baseline mb-1">
+                              <p className="text-xs font-bold">{msg.name === userName ? "You" : msg.name}</p>
+                              {msg.timestamp && (
+                                <span className="text-xs text-gray-500 ml-2">
+                                  {new Date(msg.timestamp).toLocaleTimeString()}
+                                </span>
+                              )}
+                            </div>
                             <p className="whitespace-pre-wrap">{msg.content}</p>
                           </div>
                         </motion.div>
@@ -1046,9 +1113,16 @@ export default function GroupDiscussion() {
                         transition={{ delay: (index * 0.05) % 0.5 }}
                         className="rounded-lg p-3 bg-gray-900/50 border border-gray-700/50"
                       >
-                        <p className={`text-sm font-medium mb-1 ${getBotTextColor(msg.name)}`}>
-                          {msg.name === userName ? "You" : msg.name}
-                        </p>
+                        <div className="flex justify-between items-baseline mb-1">
+                          <p className={`text-sm font-medium ${getBotTextColor(msg.name)}`}>
+                            {msg.name === userName ? "You" : msg.name}
+                          </p>
+                          {msg.timestamp && (
+                            <span className="text-xs text-gray-500">
+                              {new Date(msg.timestamp).toLocaleTimeString()}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-gray-300 text-sm">{msg.content}</p>
                       </motion.div>
                     ))}
@@ -1073,50 +1147,56 @@ export default function GroupDiscussion() {
                       </div>
                     </motion.div>
 
-                    <motion.div
-                      initial={{ y: 10, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                      className="rounded-lg p-4 bg-gray-900/50 border border-gray-700/50 flex items-center"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-700/20 flex items-center justify-center text-sm font-bold mr-3">
-                        B1
-                      </div>
-                      <div>
-                        <p className="font-medium text-blue-300">Bot 1</p>
-                        <p className="text-xs text-gray-400">AI Participant</p>
-                      </div>
-                    </motion.div>
+                    {participants
+                      .filter((name) => name !== userName)
+                      .map((participant, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ y: 10, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.2 + index * 0.1 }}
+                          className="rounded-lg p-4 bg-gray-900/50 border border-gray-700/50 flex items-center"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-700/20 flex items-center justify-center text-sm font-bold mr-3">
+                            {participant.substring(0, 1).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium text-blue-300">{participant}</p>
+                            <p className="text-xs text-gray-400">Participant</p>
+                          </div>
+                        </motion.div>
+                      ))}
 
-                    <motion.div
-                      initial={{ y: 10, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.3 }}
-                      className="rounded-lg p-4 bg-gray-900/50 border border-gray-700/50 flex items-center"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/20 to-purple-700/20 flex items-center justify-center text-sm font-bold mr-3">
-                        B2
+                    <div className="mt-6 p-4 bg-blue-900/20 backdrop-blur-md rounded-xl border border-blue-700/30">
+                      <h3 className="text-md font-medium text-blue-300 mb-2 flex items-center">
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Invite Others
+                      </h3>
+                      <p className="text-gray-300 text-xs mb-3">
+                        Share this code with others to invite them to join this discussion:
+                      </p>
+                      <div className="flex items-center bg-gray-900/50 rounded-lg p-2 border border-gray-700/50">
+                        <span className="text-lg font-mono text-green-400 flex-1 text-center">{discussionCode}</span>
+                        <motion.button
+                          onClick={copyDiscussionCode}
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          className="p-2 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-300"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </motion.button>
                       </div>
-                      <div>
-                        <p className="font-medium text-purple-300">Bot 2</p>
-                        <p className="text-xs text-gray-400">AI Participant</p>
-                      </div>
-                    </motion.div>
-
-                    <motion.div
-                      initial={{ y: 10, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.4 }}
-                      className="rounded-lg p-4 bg-gray-900/50 border border-gray-700/50 flex items-center"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500/20 to-orange-700/20 flex items-center justify-center text-sm font-bold mr-3">
-                        M
-                      </div>
-                      <div>
-                        <p className="font-medium text-orange-300">Moderator</p>
-                        <p className="text-xs text-gray-400">Discussion Lead</p>
-                      </div>
-                    </motion.div>
+                      {codeCopied && (
+                        <motion.p
+                          initial={{ opacity: 0, y: 5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 5 }}
+                          className="text-green-400 text-xs mt-2 text-center"
+                        >
+                          Code copied to clipboard!
+                        </motion.p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1124,6 +1204,7 @@ export default function GroupDiscussion() {
           )}
         </AnimatePresence>
       </main>
+
     </motion.div>
   )
 }

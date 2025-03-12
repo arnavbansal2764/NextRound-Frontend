@@ -49,7 +49,10 @@ export default function Header() {
     { name: "Guidance", href: "/guidance" },
     { name: "Resume Enhancer", href: "/resume-enhancer" },
     { name: "Cold Approach", href: "/cold-approach" },
-    { name: "Group Discussion", href: "/group-discussion" },
+    { name: "Group Discussion", children: [
+      { name: "Single User", href: "/group-discussion" },
+      {name : "Multi User", href:"/group-discussion/multi"}
+    ] },
     {
       name: "UPSC",
       children: [
@@ -92,7 +95,7 @@ export default function Header() {
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
-      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="container mx-auto  py-3 flex items-center justify-between">
         <motion.div
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -175,7 +178,6 @@ export default function Header() {
               >
                 <Avatar>
                   <AvatarImage src={session.user?.image || undefined} />
-                  <AvatarFallback>{session.user?.name?.[0] || <User className="text-gray-400" />}</AvatarFallback>
                 </Avatar>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
