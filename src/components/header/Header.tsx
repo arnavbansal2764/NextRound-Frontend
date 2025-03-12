@@ -182,7 +182,6 @@ export default function Header() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="hover:bg-purple-100 dark:hover:bg-gray-800">
-                      {session.user?.name}
                       <ChevronDown className="ml-2 h-4 w-4 text-gray-500" />
                     </Button>
                   </DropdownMenuTrigger>
