@@ -104,7 +104,7 @@ export default function NCERTTutor() {
 
   // Initialize tutor WebSocket instance
   useEffect(() => {
-    tutorWsRef.current = new TutorWebSocket("ws://localhost:8766")
+    tutorWsRef.current = new TutorWebSocket("wss://ws4.nextround.tech/tutor-10th/")
 
     // Set up event listeners
     tutorWsRef.current.addMessageListener((message) => {
