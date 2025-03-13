@@ -203,7 +203,7 @@ export default function EthicsInterview() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white"
+        className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white pt-16"
       >
         <main className="flex-1 flex items-center justify-center p-4 md:p-6">
           <motion.div
@@ -491,26 +491,27 @@ export default function EthicsInterview() {
               <div className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
                 {uiState.showChat && (
                   <div className="space-y-4">
-                    {responses.map((response, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ x: 20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: index * 0.05 }}
-                        className={`rounded-xl p-3 ${index % 2 === 0
-                            ? "bg-purple-500/20 border border-purple-500/30"
-                            : "bg-pink-500/20 border border-pink-500/30"
-                          }`}
-                      >
-                        <p
-                          className={`text-sm font-medium mb-1 ${index % 2 === 0 ? "text-purple-300" : "text-pink-300"
-                            }`}
+                    {responses
+                      // Filter to only show responses at even indices (interviewer responses)
+                      .filter((_, index) => index % 2 === 0)
+                      // Filter out duplicate responses
+                      .filter((response, index, self) =>
+                        self.findIndex(r => r === response) === index
+                      )
+                      .map((response, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ x: 20, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="rounded-xl p-3 bg-blue-500/20 border border-blue-500/30"
                         >
-                          {index % 2 === 0 ? "Interviewer" : "You"}
-                        </p>
-                        <p className="text-gray-200 text-sm">{response}</p>
-                      </motion.div>
-                    ))}
+                          <p className="text-sm font-medium mb-1 text-blue-300">
+                            Interviewer
+                          </p>
+                          <p className="text-gray-200 text-sm">{response}</p>
+                        </motion.div>
+                      ))}
                     <div ref={chatEndRef} />
                   </div>
                 )}

@@ -280,7 +280,7 @@ export default function CSATInterview() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white"
+        className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white pt-16"
       >
         <main className="flex-1 flex items-center justify-center p-4 md:p-6">
           <motion.div
@@ -331,8 +331,8 @@ export default function CSATInterview() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     className={`p-3 rounded-lg flex flex-col items-center justify-center transition-all duration-200 ${levelItem.text.toLowerCase() === difficulty
-                        ? "bg-blue-500/30 border-2 border-blue-500 text-white"
-                        : "bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700"
+                      ? "bg-blue-500/30 border-2 border-blue-500 text-white"
+                      : "bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700"
                       }`}
                   >
                     <levelItem.icon className="h-6 w-6 mb-1" />
@@ -489,8 +489,8 @@ export default function CSATInterview() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${interviewState.isMicMuted
-                  ? "bg-red-500 hover:bg-red-600 shadow-red-500/30"
-                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
+                ? "bg-red-500 hover:bg-red-600 shadow-red-500/30"
+                : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
                 }`}
               disabled={!interviewState.isRecording || interviewState.interviewComplete}
             >
@@ -506,8 +506,8 @@ export default function CSATInterview() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${interviewState.isRecording
-                  ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
-                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
+                ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
+                : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
                 }`}
               disabled={interviewState.interviewComplete}
             >
@@ -523,8 +523,8 @@ export default function CSATInterview() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${uiState.showChat
-                  ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
-                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
+                ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
+                : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
                 }`}
             >
               <MessageSquare className="w-5 h-5 md:w-6 md:h-6" />
@@ -535,8 +535,8 @@ export default function CSATInterview() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${uiState.showParticipants
-                  ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
-                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
+                ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
+                : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
                 }`}
             >
               <Users className="w-5 h-5 md:w-6 md:h-6" />
@@ -596,26 +596,27 @@ export default function CSATInterview() {
               <div className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
                 {uiState.showChat && (
                   <div className="space-y-4">
-                    {responses.map((response, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ x: 20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: index * 0.05 }}
-                        className={`rounded-xl p-3 ${index % 2 === 0
-                            ? "bg-blue-500/20 border border-blue-500/30"
-                            : "bg-purple-500/20 border border-purple-500/30"
-                          }`}
-                      >
-                        <p
-                          className={`text-sm font-medium mb-1 ${index % 2 === 0 ? "text-blue-300" : "text-purple-300"
-                            }`}
+                    {responses
+                      // Filter to only show responses at even indices (interviewer responses)
+                      .filter((_, index) => index % 2 === 0)
+                      // Filter out duplicate responses
+                      .filter((response, index, self) =>
+                        self.findIndex(r => r === response) === index
+                      )
+                      .map((response, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ x: 20, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="rounded-xl p-3 bg-blue-500/20 border border-blue-500/30"
                         >
-                          {index % 2 === 0 ? "Interviewer" : "You"}
-                        </p>
-                        <p className="text-gray-200 text-sm">{response}</p>
-                      </motion.div>
-                    ))}
+                          <p className="text-sm font-medium mb-1 text-blue-300">
+                            Interviewer
+                          </p>
+                          <p className="text-gray-200 text-sm">{response}</p>
+                        </motion.div>
+                      ))}
                     <div ref={chatEndRef} />
                   </div>
                 )}

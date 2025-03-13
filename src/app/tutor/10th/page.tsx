@@ -1,61 +1,158 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
-import type React from "react"
-
+import React from "react"
 import { TutorWebSocket } from "@/lib/tutor/10th/tutor-ws"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Mic,
   MicOff,
-  Play,
-  Pause,
-  MessageSquare,
-  RotateCcw,
-  BookOpen,
   Send,
-  Loader2,
-  Lightbulb,
-  GraduationCap,
-  BookText,
-  Brain,
+  RefreshCw,
   X,
+  Upload,
+  MessageSquare,
+  BookOpen,
+  Brain,
+  ImageIcon,
+  CheckCircle,
+  ChevronUp,
+  ChevronDown,
+  Maximize2,
+  Minimize2,
+  PanelRightOpen,
+  PanelRightClose,
+  Wand2,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import toast from "react-hot-toast"
+import ImageDropzone from "@/components/tutor/image-dropzone"
+import TutorResponseDisplay from "@/components/tutor/tutor-response-display"
+import ChatMessage from "@/components/tutor/chat-message"
+
+
+// Feature card component for setup page
+function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+  return (
+    <Card className="bg-gray-800/50 border-gray-700/50 hover:border-blue-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-900/20">
+      <CardHeader className="pb-2">
+        <div className="w-12 h-12 rounded-full bg-blue-900/30 flex items-center justify-center mb-3">{icon}</div>
+        <CardTitle className="text-blue-400">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-gray-300 text-sm">{description}</p>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function NCERTTutor() {
   const [isRecording, setIsRecording] = useState<boolean>(false)
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [responses, setResponses] = useState<string[]>([])
+  const [userMessages, setUserMessages] = useState<string[]>([])
   const [textQuestion, setTextQuestion] = useState<string>("")
   const [connectionStatus, setConnectionStatus] = useState<string>("disconnected")
   const [isMicMuted, setIsMicMuted] = useState<boolean>(false)
-  const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [showChat, setShowChat] = useState<boolean>(true)
-  const [animateResponse, setAnimateResponse] = useState(false)
-  const [selectedSubject, setSelectedSubject] = useState<string>("all")
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [remainingImages, setRemainingImages] = useState<number>(5)
+  const [isProcessingImage, setIsProcessingImage] = useState<boolean>(false)
+  const [imageDescription, setImageDescription] = useState<string | null>(null)
+  const [showSetup, setShowSetup] = useState<boolean>(true)
+  const [userInfo, setUserInfo] = useState({
+    name: "",
+    grade: "10th",
+    subjects: "",
+  })
+  const [isMobile, setIsMobile] = useState<boolean>(false)
+  const [isControlsExpanded, setIsControlsExpanded] = useState<boolean>(true)
+  const [showEducationalContent, setShowEducationalContent] = useState<boolean>(false)
+  const [isFullScreen, setIsFullScreen] = useState<boolean>(false)
+  const [currentDetailedResponse, setCurrentDetailedResponse] = useState<string>("")
+  const [currentDetailedTitle, setCurrentDetailedTitle] = useState<string>("")
+  const [currentDetailedSubject, setCurrentDetailedSubject] = useState<string>("Science")
+  const [currentDetailedChapter, setCurrentDetailedChapter] = useState<string>("NCERT Textbook")
+  const [isControlsCollapsed, setIsControlsCollapsed] = useState<boolean>(false)
 
   const tutorWsRef = useRef<TutorWebSocket | null>(null)
   const responseEndRef = useRef<HTMLDivElement | null>(null)
-  const chatEndRef = useRef<HTMLDivElement | null>(null)
-  const audioVisualizerRef = useRef<HTMLCanvasElement | null>(null)
-  const animationFrameRef = useRef<number | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const chatContainerRef = useRef<HTMLDivElement | null>(null)
 
-  const subjects = [
-    { id: "all", name: "All Subjects", icon: BookOpen },
-    { id: "science", name: "Science", icon: Lightbulb },
-    { id: "math", name: "Mathematics", icon: Brain },
-    { id: "social", name: "Social Studies", icon: BookText },
-    { id: "english", name: "English", icon: GraduationCap },
-  ]
+  // Check for mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+      if (window.innerWidth < 768) {
+        setIsControlsExpanded(false)
+        setIsControlsCollapsed(true)
+      }
+    }
+
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+
+    return () => {
+      window.removeEventListener("resize", checkMobile)
+    }
+  }, [])
 
   // Initialize tutor WebSocket instance
   useEffect(() => {
-    tutorWsRef.current = new TutorWebSocket("wss://ws3.nextround.tech/tutor")
+    tutorWsRef.current = new TutorWebSocket("ws://localhost:8766")
 
     // Set up event listeners
     tutorWsRef.current.addMessageListener((message) => {
-      setResponses((prev) => [...prev, message])
-      setAnimateResponse(true)
-      setTimeout(() => setAnimateResponse(false), 1000)
+      if (message.startsWith("You asked:")) {
+        // Store user messages separately
+        setUserMessages((prev) => [...prev, message.substring(10)])
+      } else {
+        setResponses((prev) => [...prev, message])
+
+        // Show educational content for any substantive response from the tutor
+        // This will ensure all detailed responses get the typewriter animation treatment
+        if (message.length > 100) {
+          // Extract potential title, subject, and chapter from the message
+          let title = "NCERT Tutor Response"
+          let subject = "Science"
+          let chapter = "NCERT Textbook"
+
+          if (message.includes("Q:") && message.includes("\n\nA:")) {
+            const question = message.split("\n\nA:")[0].substring(3)
+            // Set more specific title based on content
+            if (question.toLowerCase().includes("generator")) {
+              title = "Exploring Generators from 10th Science NCERT"
+              chapter = "Electromagnetic Induction"
+            } else if (question.toLowerCase().includes("electromagnetic")) {
+              title = "Understanding Electromagnetic Induction"
+              chapter = "Electromagnetic Induction"
+            } else if (question.toLowerCase().includes("physics")) {
+              title = "Physics Concepts from NCERT"
+            } else if (question.toLowerCase().includes("chemistry")) {
+              title = "Chemistry Concepts from NCERT"
+            } else if (question.toLowerCase().includes("biology")) {
+              title = "Biology Concepts from NCERT"
+            } else if (question.toLowerCase().includes("math")) {
+              title = "Mathematics Concepts from NCERT"
+              subject = "Mathematics"
+            }
+          }
+
+          // Set the detailed response content and metadata
+          setCurrentDetailedResponse(message)
+          setCurrentDetailedTitle(title)
+          setCurrentDetailedSubject(subject)
+          setCurrentDetailedChapter(chapter)
+
+          // Show the educational content with typewriter animation
+          setShowEducationalContent(true)
+        }
+      }
     })
 
     tutorWsRef.current.addStatusChangeListener((status) => {
@@ -63,21 +160,29 @@ export default function NCERTTutor() {
 
       if (status === "connected" || status === "ready") {
         setIsConnected(true)
-        setIsLoading(false)
       } else if (status === "disconnected") {
         setIsConnected(false)
         setIsRecording(false)
-        setIsLoading(false)
+      } else if (status === "processing_image") {
+        setIsProcessingImage(true)
       }
     })
 
     tutorWsRef.current.addErrorListener((error) => {
       setResponses((prev) => [...prev, `Error: ${error}`])
-      setIsLoading(false)
+      toast.error(`Error: ${error}`)
     })
 
     tutorWsRef.current.addExplanationListener((question, explanation) => {
       // Optional: Add specific handling for explanations beyond the general message listener
+      setCurrentDetailedResponse(`Q: ${question}\n\nA: ${explanation}`)
+      setCurrentDetailedTitle("Detailed Explanation")
+    })
+
+    tutorWsRef.current.addImageProcessedListener((description) => {
+      setImageDescription(description)
+      setIsProcessingImage(false)
+      toast.success("Image processed successfully!")
     })
 
     return () => {
@@ -85,78 +190,34 @@ export default function NCERTTutor() {
       if (tutorWsRef.current) {
         tutorWsRef.current.disconnect()
       }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-      }
     }
   }, [])
 
   useEffect(() => {
-    // Auto-scroll to the bottom when new responses arrive
-    if (responseEndRef.current) {
-      responseEndRef.current.scrollIntoView({ behavior: "smooth" })
+    // Update remaining images count when tutorWs changes
+    if (tutorWsRef.current) {
+      setRemainingImages(tutorWsRef.current.remainingImages)
     }
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [responses])
-
-  // Audio visualizer effect
-  useEffect(() => {
-    if (!audioVisualizerRef.current || !isRecording || isMicMuted) return
-
-    const canvas = audioVisualizerRef.current
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    const drawVisualizer = () => {
-      const width = canvas.width
-      const height = canvas.height
-
-      ctx.clearRect(0, 0, width, height)
-
-      // Draw audio waves (simulated for this demo)
-      ctx.beginPath()
-      ctx.strokeStyle = "#3b82f6" // Blue color for NCERT theme
-      ctx.lineWidth = 2
-
-      const segments = 20
-      const segmentWidth = width / segments
-
-      ctx.moveTo(0, height / 2)
-
-      for (let i = 0; i <= segments; i++) {
-        const x = i * segmentWidth
-        // Generate random heights for the wave effect
-        // In a real implementation, this would use actual audio data
-        const randomFactor = isRecording && !isMicMuted ? Math.random() * 0.5 + 0.5 : 0.1
-        const y = height / 2 + Math.sin(Date.now() * 0.005 + i * 0.5) * height * 0.2 * randomFactor
-        ctx.lineTo(x, y)
-      }
-
-      ctx.stroke()
-
-      animationFrameRef.current = requestAnimationFrame(drawVisualizer)
-    }
-
-    drawVisualizer()
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-      }
-    }
-  }, [isRecording, isMicMuted])
+  }, [responses, isConnected])
 
   const connectToTutor = async () => {
-    setIsLoading(true)
     try {
       if (tutorWsRef.current) {
-        await tutorWsRef.current.connect()
+        toast.promise(
+          (async () => {
+            await tutorWsRef.current?.connect()
+            setRemainingImages(5) // Reset image count on new connection
+            setShowSetup(false)
+          })(),
+          {
+            loading: "Connecting to NCERT Tutor...",
+            success: "Connected successfully!",
+            error: "Connection failed. Please try again.",
+          },
+        )
       }
     } catch (error) {
       console.error("Error connecting to tutor:", error)
-      setIsLoading(false)
     }
   }
 
@@ -165,9 +226,11 @@ export default function NCERTTutor() {
       if (tutorWsRef.current) {
         await tutorWsRef.current.startRecording()
         setIsRecording(true)
+        toast.success("Voice input activated")
       }
     } catch (error) {
       console.error("Failed to start recording:", error)
+      toast.error("Failed to start voice input")
     }
   }
 
@@ -175,6 +238,7 @@ export default function NCERTTutor() {
     if (tutorWsRef.current) {
       tutorWsRef.current.stopRecording()
       setIsRecording(false)
+      toast.success("Voice input stopped")
     }
   }
 
@@ -192,10 +256,12 @@ export default function NCERTTutor() {
         // Unmute - resume sending audio
         tutorWsRef.current.resumeAudio()
         setIsMicMuted(false)
+        toast.success("Microphone unmuted")
       } else {
         // Mute - pause sending audio without stopping recording
         tutorWsRef.current.pauseAudio()
         setIsMicMuted(true)
+        toast.success("Microphone muted")
       }
     }
   }
@@ -203,9 +269,8 @@ export default function NCERTTutor() {
   const sendTextQuestion = () => {
     if (tutorWsRef.current && textQuestion.trim()) {
       tutorWsRef.current.sendTextQuestion(textQuestion)
-      // Add the user's question to the responses
-      setResponses((prev) => [...prev, `You asked: ${textQuestion}`])
       setTextQuestion("")
+      toast.success("Question sent")
     }
   }
 
@@ -218,208 +283,258 @@ export default function NCERTTutor() {
 
   const clearResponses = () => {
     setResponses([])
+    setUserMessages([])
+    toast.success("Chat cleared")
+  }
+
+  const clearHistory = () => {
+    if (tutorWsRef.current) {
+      tutorWsRef.current.clearHistory()
+      toast.success("Memory reset")
+    }
   }
 
   const disconnect = () => {
     if (tutorWsRef.current) {
       tutorWsRef.current.disconnect()
+      // Reset states
+      setImageFile(null)
+      setImagePreview(null)
+      setImageDescription(null)
+      setRemainingImages(5)
+      setShowSetup(true)
+      toast.success("Disconnected from tutor")
     }
   }
 
-  const toggleChat = () => {
-    setShowChat(!showChat)
-  }
-
-  const getStatusColor = () => {
-    switch (connectionStatus) {
-      case "connected":
-      case "ready":
-        return "bg-blue-500"
-      case "disconnected":
-        return "bg-red-500"
-      default:
-        return "bg-gray-500"
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement> | { target: { files: FileList } }) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setImageFile(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
     }
   }
 
-  if (!isConnected) {
+  const uploadImage = async () => {
+    if (!imageFile || !imagePreview || !tutorWsRef.current) return
+
+    try {
+      toast.promise(
+        (async () => {
+          // Simple direct approach - using the data URL from preview
+          const success = tutorWsRef.current?.sendImage(imagePreview)
+
+          if (success) {
+            setImageFile(null)
+            if (fileInputRef.current) {
+              fileInputRef.current.value = ""
+            }
+            setRemainingImages(tutorWsRef.current?.remainingImages || 5)
+          }
+          return success
+        })(),
+        {
+          loading: "Uploading image...",
+          success: "Image uploaded successfully!",
+          error: "Failed to upload image",
+        },
+      )
+    } catch (error) {
+      console.error("Error uploading image:", error)
+    }
+  }
+
+  const cancelImageUpload = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  // Setup page
+  if (showSetup) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white"
+        className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white pt-16"
       >
-        <main className="flex-1 flex items-center justify-center p-4 md:p-6">
+        <main className="flex-1 container mx-auto px-4 py-8 md:py-12">
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="w-full max-w-4xl bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-2xl p-4 md:p-8 border border-gray-700/50"
+            transition={{ delay: 0.2 }}
+            className="text-center mb-12"
           >
-            <h2 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500">
-              NCERT 10th Grade Tutor
-            </h2>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500">
+              NCERT 10th Grade AI Tutor
+            </h1>
+            <p className="text-lg text-gray-300 max-w-3xl mx-auto">
+              Your personal AI tutor for NCERT 10th grade subjects. Ask questions, upload images, and get instant
+              explanations.
+            </p>
+          </motion.div>
 
-            {/* What is NCERT Tutor section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="lg:col-span-2"
+            >
+              <Card className="bg-gray-800/50 backdrop-blur-lg border-gray-700/50 shadow-xl h-full">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-blue-400">Student Information</CardTitle>
+                  <CardDescription className="text-gray-300">
+                    Enter your details to personalize your learning experience
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label htmlFor="name" className="text-sm font-medium text-gray-300">
+                        Your Name <span className="text-red-400">*</span>
+                      </label>
+                      <Input
+                        id="name"
+                        value={userInfo.name}
+                        onChange={(e) => setUserInfo({ ...userInfo, name: e.target.value })}
+                        className="bg-gray-900/70 border-gray-700 text-white"
+                        placeholder="Enter your name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="grade" className="text-sm font-medium text-gray-300">
+                        Grade
+                      </label>
+                      <Input
+                        id="grade"
+                        value={userInfo.grade}
+                        onChange={(e) => setUserInfo({ ...userInfo, grade: e.target.value })}
+                        className="bg-gray-900/70 border-gray-700 text-white"
+                        placeholder="10th"
+                        disabled
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="subjects" className="text-sm font-medium text-gray-300">
+                      Subjects You Need Help With
+                    </label>
+                    <Textarea
+                      id="subjects"
+                      value={userInfo.subjects}
+                      onChange={(e) => setUserInfo({ ...userInfo, subjects: e.target.value })}
+                      className="bg-gray-900/70 border-gray-700 text-white min-h-[100px]"
+                      placeholder="E.g., Mathematics, Science, Social Studies, etc."
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <motion.button
+                    onClick={connectToTutor}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="w-full py-4 rounded-lg font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 shadow-lg shadow-blue-600/20 transition-all duration-300"
+                    disabled={!userInfo.name.trim()}
+                  >
+                    Connect to NCERT Tutor
+                  </motion.button>
+                </CardFooter>
+              </Card>
+            </motion.div>
+
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
+              className="space-y-6"
             >
-              <h3 className="text-xl font-bold mb-4 text-center text-blue-300">Your AI Study Companion</h3>
-              <p className="text-gray-300 mb-4">
-                Get instant help with your NCERT 10th grade subjects. Ask questions, solve problems, and understand
-                difficult concepts with the help of our AI tutor.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
-                  <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center mb-3 mx-auto">
-                    <BookOpen className="h-5 w-5 text-blue-400" />
+              <Card className="bg-gray-800/50 backdrop-blur-lg border-gray-700/50 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-blue-400">AI Tutor Features</CardTitle>
+                  <CardDescription className="text-gray-300">
+                    Discover what our NCERT AI tutor can do for you
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3 p-3 bg-gray-900/70 rounded-lg border border-gray-700/50">
+                    <div className="bg-blue-900/30 rounded-full p-2">
+                      <Mic className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-blue-300">Voice Interaction</h3>
+                      <p className="text-sm text-gray-400">Ask questions naturally using your voice</p>
+                    </div>
                   </div>
-                  <p className="text-center text-sm">Covers all NCERT 10th grade subjects</p>
-                </div>
-                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
-                  <div className="w-10 h-10 bg-indigo-500/20 rounded-full flex items-center justify-center mb-3 mx-auto">
-                    <Lightbulb className="h-5 w-5 text-indigo-400" />
-                  </div>
-                  <p className="text-center text-sm">Clear explanations with examples</p>
-                </div>
-                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
-                  <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center mb-3 mx-auto">
-                    <Brain className="h-5 w-5 text-purple-400" />
-                  </div>
-                  <p className="text-center text-sm">Voice and text-based questions</p>
-                </div>
-              </div>
-            </motion.div>
 
-            {/* Subjects section */}
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
-            >
-              <h3 className="text-xl font-bold mb-4 text-center text-blue-300">Choose Your Subject</h3>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                {subjects.map((subject) => (
-                  <motion.button
-                    key={subject.id}
-                    onClick={() => setSelectedSubject(subject.id)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`p-3 rounded-lg flex flex-col items-center justify-center transition-all duration-200 ${subject.id === selectedSubject
-                        ? "bg-blue-500/30 border-2 border-blue-500 text-white"
-                        : "bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700"
-                      }`}
-                  >
-                    <subject.icon className="h-6 w-6 mb-1" />
-                    <span className="text-xs font-medium">{subject.name}</span>
-                  </motion.button>
-                ))}
-              </div>
-            </motion.div>
+                  <div className="flex items-center gap-3 p-3 bg-gray-900/70 rounded-lg border border-gray-700/50">
+                    <div className="bg-blue-900/30 rounded-full p-2">
+                      <ImageIcon className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-blue-300">Image Analysis</h3>
+                      <p className="text-sm text-gray-400">
+                        Upload textbook pages or diagrams for instant explanations
+                      </p>
+                    </div>
+                  </div>
 
-            {/* How it works section */}
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
-            >
-              <h3 className="text-xl font-bold mb-4 text-center text-blue-300">How It Works</h3>
-              <div className="space-y-3">
-                <div className="flex items-start">
-                  <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                    <span className="text-blue-400 font-bold">1</span>
+                  <div className="flex items-center gap-3 p-3 bg-gray-900/70 rounded-lg border border-gray-700/50">
+                    <div className="bg-blue-900/30 rounded-full p-2">
+                      <BookOpen className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-blue-300">NCERT Curriculum</h3>
+                      <p className="text-sm text-gray-400">Aligned with the latest NCERT 10th grade syllabus</p>
+                    </div>
                   </div>
-                  <p className="text-gray-300">
-                    <span className="font-medium text-blue-300">Connect:</span> Click the connect button to start your
-                    tutoring session
-                  </p>
-                </div>
-                <div className="flex items-start">
-                  <div className="w-8 h-8 bg-indigo-500/20 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                    <span className="text-indigo-400 font-bold">2</span>
-                  </div>
-                  <p className="text-gray-300">
-                    <span className="font-medium text-indigo-300">Ask:</span> Type your question or use voice input
-                  </p>
-                </div>
-                <div className="flex items-start">
-                  <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                    <span className="text-purple-400 font-bold">3</span>
-                  </div>
-                  <p className="text-gray-300">
-                    <span className="font-medium text-purple-300">Learn:</span> Get detailed explanations and examples
-                  </p>
-                </div>
-              </div>
-            </motion.div>
 
-            {/* Tips section */}
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.7 }}
-              className="bg-blue-500/10 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-blue-500/20 mb-6"
-            >
-              <h3 className="text-lg font-bold mb-2 text-blue-300 flex items-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 mr-2"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Pro Tips
-              </h3>
-              <ul className="text-sm text-gray-300 space-y-2">
-                <li className="flex items-start">
-                  <span className="text-blue-400 mr-2">•</span> Be specific with your questions for better answers
-                </li>
-                <li className="flex items-start">
-                  <span className="text-blue-400 mr-2">•</span> Mention the chapter or topic for more relevant help
-                </li>
-                <li className="flex items-start">
-                  <span className="text-blue-400 mr-2">•</span> Use voice input for longer or complex questions
-                </li>
-                <li className="flex items-start">
-                  <span className="text-blue-400 mr-2">•</span> Ask for examples if you need more clarity
-                </li>
-              </ul>
-            </motion.div>
-
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.8 }}
-              className="flex justify-center"
-            >
-              <motion.button
-                onClick={connectToTutor}
-                whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(59, 130, 246, 0.5)" }}
-                whileTap={{ scale: 0.95 }}
-                disabled={isLoading}
-                className="px-8 py-4 rounded-full font-bold text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/30 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <div className="flex items-center">
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Connecting to Tutor...
+                  <div className="flex items-center gap-3 p-3 bg-gray-900/70 rounded-lg border border-gray-700/50">
+                    <div className="bg-blue-900/30 rounded-full p-2">
+                      <Brain className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-blue-300">Personalized Learning</h3>
+                      <p className="text-sm text-gray-400">
+                        Adapts to your learning style and remembers past interactions
+                      </p>
+                    </div>
                   </div>
-                ) : (
-                  "Connect to Tutor"
-                )}
-              </motion.button>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gray-800/50 backdrop-blur-lg border-gray-700/50 shadow-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xl text-blue-400">Study Tips</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-blue-400 mt-0.5 shrink-0" />
+                    <p className="text-sm text-gray-300">Ask specific questions for better answers</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-blue-400 mt-0.5 shrink-0" />
+                    <p className="text-sm text-gray-300">Upload clear images of textbook pages</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-blue-400 mt-0.5 shrink-0" />
+                    <p className="text-sm text-gray-300">Review previous explanations in the chat history</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-blue-400 mt-0.5 shrink-0" />
+                    <p className="text-sm text-gray-300">Use voice for complex questions, text for simple ones</p>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.div>
-          </motion.div>
+          </div>
         </main>
       </motion.div>
     )
@@ -429,259 +544,407 @@ export default function NCERTTutor() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex flex-col h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white overflow-hidden pt-16 md:pt-24 pb-[160px] md:pb-[200px]"
+      className={`flex flex-col min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white pt-16 ${isFullScreen ? "fixed inset-0 z-50" : ""}`}
     >
-      {/* Status indicator */}
-      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-30">
-        <div
-          className={`px-4 py-2 rounded-full ${getStatusColor()} text-white text-sm font-medium flex items-center gap-2 shadow-lg`}
-        >
-          {(connectionStatus === "connected" || connectionStatus === "ready") && (
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-            </span>
-          )}
-          {connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
-        </div>
-      </div>
 
-      {/* Main content */}
-      <main className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        {/* Main tutor area */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4 }}
-          className="flex-1 flex flex-col relative h-full"
-        >
-          {/* Subject selector */}
-          <div className="p-2 md:p-4 flex flex-wrap gap-2 justify-center">
-            {subjects.map((subject) => (
-              <motion.button
-                key={subject.id}
-                onClick={() => setSelectedSubject(subject.id)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 text-sm ${subject.id === selectedSubject
-                    ? "bg-blue-500/30 border border-blue-500 text-white"
-                    : "bg-gray-800/50 border border-gray-700 text-gray-300 hover:bg-gray-700"
-                  }`}
-              >
-                <subject.icon className="h-4 w-4" />
-                <span>{subject.name}</span>
-              </motion.button>
-            ))}
-          </div>
-
-          {/* Tutor avatar */}
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="flex-1 p-2 md:p-4 flex items-center justify-center"
-          >
-            <div className="bg-gray-800/50 backdrop-blur-md rounded-xl overflow-hidden flex items-center justify-center relative border border-gray-700/50 shadow-xl min-h-[180px] w-full max-w-md">
-              <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-black/60 backdrop-blur-md px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium z-10">
-                NCERT Tutor
-              </div>
-              <div className="w-20 h-20 md:w-32 md:h-32 bg-gradient-to-br from-blue-500 to-indigo-700 rounded-full flex items-center justify-center text-2xl md:text-4xl shadow-lg shadow-blue-500/30">
-                AI
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Audio visualizer */}
-          {isRecording && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 py-2">
-              <canvas ref={audioVisualizerRef} width="600" height="60" className="w-full max-w-md mx-auto" />
-            </motion.div>
-          )}
-
-          {/* Text input */}
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.7 }}
-            className="bg-gray-800/50 backdrop-blur-md p-2 md:p-4 border-t border-gray-700/50 fixed left-0 right-0 bottom-[72px] md:bottom-[80px] z-10"
-          >
+      <main className="flex-1 p-4 md:p-6 mx-auto max-w-5xl w-full">
+        <AnimatePresence mode="wait">
+          {showEducationalContent ? (
             <motion.div
-              animate={
-                animateResponse
-                  ? {
-                    scale: [1, 1.02, 1],
-                    borderColor: ["rgba(59, 130, 246, 0.5)", "rgba(59, 130, 246, 0.8)", "rgba(59, 130, 246, 0.5)"],
-                  }
-                  : {}
-              }
-              transition={{ duration: 0.5 }}
-              className="bg-gray-900/50 backdrop-blur-md rounded-xl p-3 md:p-4 border border-gray-700/50 shadow-lg relative"
+              key="educational-content"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+              className="w-full"
             >
-              <textarea
-                value={textQuestion}
-                onChange={(e) => setTextQuestion(e.target.value)}
-                onKeyDown={handleKeyPress}
-                className="w-full bg-transparent border-none focus:ring-0 text-gray-200 text-sm md:text-base resize-none outline-none"
-                placeholder="Type your question here... (Press Enter to send)"
-                rows={2}
-              ></textarea>
-              <motion.button
-                onClick={sendTextQuestion}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                disabled={!textQuestion.trim()}
-                className="absolute right-3 bottom-3 p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="h-4 w-4" />
-              </motion.button>
+              <TutorResponseDisplay
+                content={currentDetailedResponse}
+                title={currentDetailedTitle}
+                subject={currentDetailedSubject}
+                chapter={currentDetailedChapter}
+                onClose={() => setShowEducationalContent(false)}
+              />
             </motion.div>
-          </motion.div>
-
-          {/* Controls - fixed at bottom */}
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            className="bg-black/30 backdrop-blur-md py-3 md:py-4 px-4 md:px-6 flex justify-center items-center space-x-2 md:space-x-4 border-t border-gray-700/50 fixed bottom-0 left-0 right-0 z-10"
-          >
-            <motion.button
-              onClick={toggleMicrophone}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${isMicMuted
-                  ? "bg-red-500 hover:bg-red-600 shadow-red-500/30"
-                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
-                }`}
-              disabled={!isRecording}
-            >
-              {isMicMuted ? <MicOff className="w-5 h-5 md:w-6 md:h-6" /> : <Mic className="w-5 h-5 md:w-6 md:h-6" />}
-            </motion.button>
-
-            <motion.button
-              onClick={toggleRecording}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${isRecording
-                  ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
-                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
-                }`}
-            >
-              {isRecording ? <Pause className="w-5 h-5 md:w-6 md:h-6" /> : <Play className="w-5 h-5 md:w-6 md:h-6" />}
-            </motion.button>
-
-            <motion.button
-              onClick={toggleChat}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${showChat
-                  ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
-                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
-                }`}
-            >
-              <MessageSquare className="w-5 h-5 md:w-6 md:h-6" />
-            </motion.button>
-
-            <motion.button
-              onClick={clearResponses}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className="p-3 md:p-4 rounded-full bg-gray-700 hover:bg-gray-600 transition-all duration-300 shadow-lg shadow-gray-700/30"
-            >
-              <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
-            </motion.button>
-
-            <motion.button
-              onClick={disconnect}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className="p-3 md:p-4 rounded-full bg-red-500 hover:bg-red-600 transition-all duration-300 shadow-lg shadow-red-500/30"
-            >
-              <X className="w-5 h-5 md:w-6 md:h-6" />
-            </motion.button>
-          </motion.div>
-        </motion.div>
-
-        {/* Chat panel */}
-        <AnimatePresence>
-          {showChat && (
+          ) : (
             <motion.div
-              initial={{ x: 300, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 300, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="w-full md:w-80 bg-gray-800/50 backdrop-blur-md border-l border-gray-700/50 flex flex-col shadow-xl absolute md:relative inset-0 z-20 md:z-0 pb-[160px]"
+              key="tutor-interface"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-6"
             >
-              <div className="p-4 border-b border-gray-700/50 flex justify-between items-center">
-                <h2 className="font-medium text-blue-300">Chat History</h2>
-                <motion.button
-                  onClick={toggleChat}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </motion.button>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xl font-semibold text-blue-400 flex items-center">
+                  <Wand2 className="h-5 w-5 mr-2" />
+                  AI Tutor Controls
+                </h2>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-400 hover:text-white"
+                    onClick={() => setIsControlsCollapsed(!isControlsCollapsed)}
+                  >
+                    {isControlsCollapsed ? (
+                      <PanelRightOpen className="h-5 w-5" />
+                    ) : (
+                      <PanelRightClose className="h-5 w-5" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-400 hover:text-white"
+                    onClick={() => setIsControlsExpanded(!isControlsExpanded)}
+                  >
+                    {isControlsExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
-                {responses.length > 0 ? (
-                  <div className="space-y-4">
-                    {responses.map((response, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ x: 20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: index * 0.05 }}
-                        className={`rounded-xl p-3 ${response.startsWith("You asked:") || response.startsWith("Q:")
-                            ? "bg-blue-500/20 border border-blue-500/30 ml-auto max-w-[85%]"
-                            : response.startsWith("Error:")
-                              ? "bg-red-500/20 border border-red-500/30"
-                              : "bg-indigo-500/20 border border-indigo-500/30"
-                          }`}
+              <AnimatePresence>
+                {isControlsExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="overflow-hidden"
+                  >
+                    <div
+                      className={`grid grid-cols-1 ${isControlsCollapsed ? "md:grid-cols-1" : "md:grid-cols-3"} gap-4 md:gap-6`}
+                    >
+                      <Card
+                        className={`bg-gray-800/50 backdrop-blur-md border-gray-700/50 col-span-1 ${isControlsCollapsed ? "" : "md:col-span-2"}`}
                       >
-                        {response.startsWith("You asked:") ? (
-                          <>
-                            <p className="text-sm font-medium mb-1 text-blue-300">You</p>
-                            <p className="text-gray-200 text-sm">{response.substring(10)}</p>
-                          </>
-                        ) : response.startsWith("Error:") ? (
-                          <>
-                            <p className="text-sm font-medium mb-1 text-red-300">Error</p>
-                            <p className="text-gray-200 text-sm">{response.substring(6)}</p>
-                          </>
-                        ) : response.startsWith("Q:") ? (
-                          <>
-                            <p className="text-sm font-medium mb-1 text-blue-300">Question</p>
-                            <p className="text-gray-200 text-sm">{response.split("\n\nA:")[0].substring(3)}</p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-sm font-medium mb-1 text-indigo-300">NCERT Tutor</p>
-                            <p className="text-gray-200 text-sm whitespace-pre-wrap">{response}</p>
-                          </>
-                        )}
-                      </motion.div>
-                    ))}
-                    <div ref={chatEndRef} />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center">
-                    <BookOpen className="h-12 w-12 mb-4 opacity-50" />
-                    <p className="text-sm">No messages yet</p>
-                    <p className="text-xs mt-2">Ask a question to get started</p>
-                  </div>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-xl text-blue-400 flex items-center">
+                            <MessageSquare className="h-5 w-5 mr-2" />
+                            Voice & Text Input
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="flex flex-wrap gap-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    onClick={toggleRecording}
+                                    className={`${isRecording ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"
+                                      } transition-all duration-300`}
+                                    disabled={!isConnected}
+                                  >
+                                    <motion.div
+                                      animate={isRecording ? { scale: [1, 1.2, 1] } : {}}
+                                      transition={{ repeat: Number.POSITIVE_INFINITY, duration: 2 }}
+                                      className="mr-2"
+                                    >
+                                      {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                                    </motion.div>
+                                    {isRecording ? "Stop Voice" : "Start Voice"}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{isRecording ? "Stop voice recording" : "Start voice recording"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    onClick={toggleMicrophone}
+                                    className={`${isMicMuted ? "bg-yellow-500 hover:bg-yellow-600" : "bg-gray-500 hover:bg-gray-600"
+                                      } transition-all duration-300`}
+                                    disabled={!isRecording || !isConnected}
+                                  >
+                                    {isMicMuted ? (
+                                      <MicOff className="h-4 w-4 mr-2" />
+                                    ) : (
+                                      <Mic className="h-4 w-4 mr-2" />
+                                    )}
+                                    {isMicMuted ? "Unmute" : "Mute"}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{isMicMuted ? "Unmute microphone" : "Mute microphone"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    onClick={clearResponses}
+                                    className="bg-gray-600 hover:bg-gray-700 transition-all duration-300"
+                                    disabled={!isConnected}
+                                  >
+                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                    Clear Chat
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Clear the chat history</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    onClick={clearHistory}
+                                    className="bg-indigo-600 hover:bg-indigo-700 transition-all duration-300"
+                                    disabled={!isConnected}
+                                  >
+                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                    Reset Memory
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Reset the tutor's memory</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    onClick={disconnect}
+                                    className="bg-gray-700 hover:bg-gray-800 transition-all duration-300"
+                                    disabled={!isConnected}
+                                  >
+                                    <X className="h-4 w-4 mr-2" />
+                                    Disconnect
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Disconnect from the tutor</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            {/* Demo button removed as requested */}
+                            {/* <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    onClick={addSampleResponse}
+                                    className="bg-green-600 hover:bg-green-700 transition-all duration-300"
+                                  >
+                                    <Sparkles className="h-4 w-4 mr-2" />
+                                    Demo Response
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Show a sample educational response</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider> */}
+                          </div>
+
+                          <div className="relative">
+                            <Textarea
+                              value={textQuestion}
+                              onChange={(e) => setTextQuestion(e.target.value)}
+                              onKeyDown={handleKeyPress}
+                              className="w-full p-3 pr-16 bg-gray-900/70 border-gray-700 text-white resize-none"
+                              placeholder="Type your question here... (Press Enter to send)"
+                              rows={3}
+                              disabled={!isConnected}
+                            />
+                            <Button
+                              onClick={sendTextQuestion}
+                              className="absolute right-2 bottom-2 p-2 rounded-md bg-blue-600 hover:bg-blue-700 transition-all duration-300"
+                              disabled={!textQuestion.trim() || !isConnected}
+                            >
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="text-sm text-gray-400">
+                            {isRecording
+                              ? isMicMuted
+                                ? "Microphone muted. Click 'Unmute' to continue."
+                                : "Voice input active. Ask your questions about NCERT topics."
+                              : "Click 'Start Voice' to ask questions by voice."}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {!isControlsCollapsed && (
+                        <Card className="bg-gray-800/50 backdrop-blur-md border-gray-700/50">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-xl text-blue-400 flex items-center">
+                              <ImageIcon className="h-5 w-5 mr-2" />
+                              Image Analysis
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <p className="text-sm text-gray-300">
+                              Upload an image of a textbook page, diagram, or problem to analyze
+                            </p>
+                            <Badge variant="outline" className="bg-blue-900/30 text-blue-300 border-blue-700">
+                              {remainingImages} images remaining
+                            </Badge>
+
+                            <div className="space-y-3">
+                              <ImageDropzone
+                                onFileSelect={(file) => {
+                                  if (fileInputRef.current) {
+                                    const dataTransfer = new DataTransfer()
+                                    dataTransfer.items.add(file)
+                                    fileInputRef.current.files = dataTransfer.files
+                                    handleImageChange({
+                                      target: { files: dataTransfer.files },
+                                    } as React.ChangeEvent<HTMLInputElement>)
+                                  }
+                                }}
+                                maxSizeMB={5}
+                                className={
+                                  remainingImages <= 0 || isProcessingImage || !isConnected
+                                    ? "opacity-50 pointer-events-none"
+                                    : ""
+                                }
+                              />
+
+                              <AnimatePresence>
+                                {imagePreview && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="mt-4"
+                                  >
+                                    <div className="relative max-w-xs mx-auto">
+                                      <img
+                                        src={imagePreview || "/placeholder.svg"}
+                                        alt="Preview"
+                                        className="w-full object-contain border rounded-md max-h-48 border-blue-700/50"
+                                      />
+                                    </div>
+                                    <div className="flex justify-center gap-2 mt-2">
+                                      <Button
+                                        onClick={uploadImage}
+                                        disabled={isProcessingImage || remainingImages <= 0 || !isConnected}
+                                        className="bg-blue-600 hover:bg-blue-700 transition-all duration-300"
+                                      >
+                                        <Upload className="h-4 w-4 mr-2" />
+                                        {isProcessingImage ? "Processing..." : "Analyze Image"}
+                                      </Button>
+                                      <Button
+                                        onClick={cancelImageUpload}
+                                        className="bg-gray-600 hover:bg-gray-700 transition-all duration-300"
+                                      >
+                                        <X className="h-4 w-4 mr-2" />
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+
+                              <AnimatePresence>
+                                {isProcessingImage && (
+                                  <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="flex items-center justify-center mt-4"
+                                  >
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                                    <span className="ml-2 text-sm text-gray-400">Processing image...</span>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </motion.div>
                 )}
-              </div>
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {(responses.length > 0 || userMessages.length > 0) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="bg-gray-800/50 backdrop-blur-md rounded-xl p-6 border border-gray-700/50 shadow-lg"
+                  >
+                    <h2 className="text-xl font-semibold text-blue-400 mb-4 flex items-center">
+                      <MessageSquare className="h-5 w-5 mr-2" />
+                      Tutor Chat
+                    </h2>
+                    <div ref={chatContainerRef} className="bg-gray-900/70 rounded-lg p-4 max-h-[60vh] overflow-y-auto">
+                      {/* Interleave user messages and responses */}
+                      {userMessages.map((userMessage, index) => {
+                        const correspondingResponse = responses[index]
+                        return (
+                          <React.Fragment key={index}>
+                            <ChatMessage message={userMessage} isUser={true} />
+                            {correspondingResponse && (
+                              <ChatMessage
+                                message={correspondingResponse}
+                                isUser={false}
+                                hasDetailedView={
+                                  correspondingResponse.includes("generator") ||
+                                  correspondingResponse.includes("electromagnetic")
+                                }
+                                onViewFullExplanation={() => {
+                                  setCurrentDetailedResponse(correspondingResponse)
+                                  // Set appropriate title based on content
+                                  let title = "NCERT Tutor Response"
+                                  if (correspondingResponse.toLowerCase().includes("generator")) {
+                                    title = "Exploring Generators from 10th Science NCERT"
+                                  } else if (correspondingResponse.toLowerCase().includes("electromagnetic")) {
+                                    title = "Understanding Electromagnetic Induction"
+                                  }
+                                  setCurrentDetailedTitle(title)
+                                  setCurrentDetailedSubject("Science")
+                                  setCurrentDetailedChapter("NCERT Textbook")
+                                  // Ensure this is set to true to show the content
+                                  setShowEducationalContent(true)
+                                }}
+                              />
+                            )}
+                          </React.Fragment>
+                        )
+                      })}
+
+                      {/* Display any remaining responses */}
+                      {responses.slice(userMessages.length).map((response, index) => (
+                        <ChatMessage
+                          key={`extra-${index}`}
+                          message={response}
+                          isUser={false}
+                          hasDetailedView={response.includes("generator") || response.includes("electromagnetic")}
+                          onViewFullExplanation={() => {
+                            setCurrentDetailedResponse(response)
+                            setCurrentDetailedTitle("NCERT Tutor Response")
+                            setCurrentDetailedSubject("Science")
+                            setCurrentDetailedChapter("NCERT Textbook")
+                            setShowEducationalContent(true)
+                          }}
+                        />
+                      ))}
+                      <div ref={responseEndRef} />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>
       </main>
+
+     
     </motion.div>
   )
 }

@@ -248,7 +248,7 @@ export default function HCSInterviewAssistant() {
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white"
+                className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white pt-16"
             >
                 <main className="flex-1 flex items-center justify-center p-4 md:p-6">
                     <motion.div

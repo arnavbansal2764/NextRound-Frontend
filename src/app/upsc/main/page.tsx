@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useRef, useState } from "react"
 import {
     UPSCInterviewWebSocket,
@@ -13,25 +15,28 @@ import {
     MessageSquare,
     Users,
     PhoneOff,
-    GraduationCap,
-    BookOpen,
-    Award,
     User,
     UserCheck,
     Send,
     X,
     Info,
+    CheckCircle,
+    FileText,
+    Sparkles,
+    Video,
+    VideoOff,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
-import { InterviewProgress } from "@/components/upsc/interview-progress"
 import { Result } from "@/components/upsc/result"
 import { cn } from "@/lib/utils"
 import QuestionReader from "@/components/interview/screen-reader"
 import toast from "react-hot-toast"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 
 interface BoardMember {
     name: string
@@ -56,9 +61,14 @@ function PanelistModal({
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-900 rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-700 shadow-xl">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-gray-900 rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-700 shadow-xl"
+            >
                 {/* Header */}
-                <div className="bg-gradient-to-r from-green-900 to-emerald-900 p-5 relative">
+                <div className="bg-gradient-to-r from-emerald-900 to-green-800 p-5 relative">
                     <div className="flex items-center gap-4">
                         <Avatar className="h-16 w-16 border-2 border-green-600/50 shadow-lg">
                             <AvatarImage src={panelist.avatar} alt={panelist.name} />
@@ -117,7 +127,7 @@ function PanelistModal({
                         Return to Interview
                     </Button>
                 </div>
-            </div>
+            </motion.div>
         </div>
     )
 }
@@ -135,6 +145,21 @@ function InfoButton({ member, onClick }: { member: BoardMember; onClick: (member
     )
 }
 
+// Feature card component for setup page
+function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+    return (
+        <Card className="bg-gray-800/50 border-gray-700/50 hover:border-green-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-green-900/20">
+            <CardHeader className="pb-2">
+                <div className="w-12 h-12 rounded-full bg-green-900/30 flex items-center justify-center mb-3">{icon}</div>
+                <CardTitle className="text-green-400">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-gray-300 text-sm">{description}</p>
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function UPSCInterviewSimulator() {
     const [isRecording, setIsRecording] = useState<boolean>(false)
     const [isConfigured, setIsConfigured] = useState<boolean>(false)
@@ -148,7 +173,6 @@ export default function UPSCInterviewSimulator() {
         background: "",
         optional_info: "",
     })
-    const [numQuestions, setNumQuestions] = useState<number>(10)
     const [interviewComplete, setInterviewComplete] = useState<boolean>(false)
     const [summary, setSummary] = useState<UPSCInterviewSummary | null>(null)
     const [connectionStatus, setConnectionStatus] = useState<string>("disconnected")
@@ -287,12 +311,6 @@ export default function UPSCInterviewSimulator() {
                 setInterviewComplete(true)
                 setIsRecording(false)
             }
-
-            // Update progress
-            if (numQuestions > 0) {
-                const newProgress = Math.min(100, (questions.length / numQuestions) * 100)
-                setProgress(newProgress)
-            }
         })
 
         interviewWsRef.current.addStatusChangeListener((status) => {
@@ -391,20 +409,18 @@ export default function UPSCInterviewSimulator() {
                 customWs.close()
             }
         }
-    }, [numQuestions, interviewState, userInfo])
-
+    }, [interviewState, userInfo])
 
     const configureAndStartInterview = async () => {
         // Validate user info
         if (!userInfo.name.trim() || !userInfo.education.trim()) {
-            alert("Please provide at least your name and education to start the UPSC interview")
+            toast.error("Please provide at least your name and education to start the interview")
             return
         }
 
         try {
             const config: UPSCInterviewConfig = {
-                user_info: userInfo,
-                num_questions: numQuestions,
+                user_info: userInfo
             }
             toast.promise(
                 (async () => {
@@ -413,7 +429,7 @@ export default function UPSCInterviewSimulator() {
                         startRecording()
                     }
                 })(),
-                { loading: 'Starting Interview..', success: 'Interview Started', error: 'Failed to start interview' }
+                { loading: 'Starting Interview...', success: 'Interview Started', error: 'Failed to start interview' }
             )
         } catch (error) {
             console.error("Error configuring UPSC interview:", error)
@@ -469,7 +485,7 @@ export default function UPSCInterviewSimulator() {
     }
 
     const requestSummary = () => {
-        toast.promise((async()=>{
+        toast.promise((async () => {
             if (interviewWsRef.current) {
                 setIsSummaryLoading(true)
                 setSummaryError(null)
@@ -487,8 +503,7 @@ export default function UPSCInterviewSimulator() {
                 // Return a cleanup function to clear the timeout if component unmounts
                 return () => clearTimeout(timeoutId)
             }
-        })(),{loading:'Requesting Summary..',success:'Summary Requested',error:'Failed to request summary'})
-        
+        })(), { loading: 'Requesting Summary...', success: 'Summary Requested', error: 'Failed to request summary' })
     }
 
     const endInterview = () => {
@@ -547,7 +562,6 @@ export default function UPSCInterviewSimulator() {
     // Summary view
     if (showSummaryView && summary) {
         console.log("Rendering summary view with data:", summary)
-
         return (
             <Result summaryData={summary} onContinue={handleContinueInterview} onNewInterview={handleStartNewInterview} />
         )
@@ -558,173 +572,214 @@ export default function UPSCInterviewSimulator() {
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white"
+                className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white pt-16"
             >
-                <main className="flex-1 flex items-center justify-center p-4 md:p-6">
+                <main className="flex-1 container mx-auto px-4 py-8 md:py-12">
                     <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                        className="w-full max-w-4xl bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-2xl p-4 md:p-8 border border-gray-700/50"
+                        transition={{ delay: 0.2 }}
+                        className="text-center mb-12"
                     >
-                        <h2 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-500">
-                            Prepare for Your UPSC Interview
-                        </h2>
+                        <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-500">
+                            UPSC Interview Simulator
+                        </h1>
+                        <p className="text-lg text-gray-300 max-w-3xl mx-auto">
+                            Practice your UPSC interview skills with our AI-powered simulation that replicates the real interview experience
+                        </p>
+                    </motion.div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
-                            <motion.div
-                                initial={{ x: -20, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: 0.4 }}
-                                className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50"
-                            >
-                                <h3 className="text-xl font-semibold mb-4 text-green-400">Personal Information</h3>
-
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-1">
-                                                Full Name*
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+                        <motion.div
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="lg:col-span-2"
+                        >
+                            <Card className="bg-gray-800/50 backdrop-blur-lg border-gray-700/50 shadow-xl h-full">
+                                <CardHeader>
+                                    <CardTitle className="text-2xl text-green-400">Personal Information</CardTitle>
+                                    <CardDescription className="text-gray-300">
+                                        Enter your details to customize the interview experience
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label htmlFor="name" className="text-sm font-medium text-gray-300">
+                                                Full Name <span className="text-red-400">*</span>
                                             </label>
-                                            <input
-                                                type="text"
+                                            <Input
                                                 id="name"
                                                 value={userInfo.name}
                                                 onChange={(e) => setUserInfo({ ...userInfo, name: e.target.value })}
-                                                className="w-full p-2 bg-gray-800/70 border border-gray-600 rounded-md focus:ring-green-500 focus:border-green-500 text-white"
+                                                className="bg-gray-900/70 border-gray-700 text-white"
                                                 placeholder="Your full name"
-                                                required
                                             />
                                         </div>
-
-                                        <div>
-                                            <label htmlFor="education" className="block text-sm font-medium text-gray-300 mb-1">
-                                                Educational Background*
+                                        <div className="space-y-2">
+                                            <label htmlFor="education" className="text-sm font-medium text-gray-300">
+                                                Educational Background <span className="text-red-400">*</span>
                                             </label>
-                                            <input
-                                                type="text"
+                                            <Input
                                                 id="education"
                                                 value={userInfo.education}
                                                 onChange={(e) => setUserInfo({ ...userInfo, education: e.target.value })}
-                                                className="w-full p-2 bg-gray-800/70 border border-gray-600 rounded-md focus:ring-green-500 focus:border-green-500 text-white"
+                                                className="bg-gray-900/70 border-gray-700 text-white"
                                                 placeholder="Your highest degree"
-                                                required
                                             />
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label htmlFor="hobbies" className="block text-sm font-medium text-gray-300 mb-1">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label htmlFor="hobbies" className="text-sm font-medium text-gray-300">
                                                 Hobbies & Interests
                                             </label>
-                                            <input
-                                                type="text"
+                                            <Input
                                                 id="hobbies"
                                                 value={userInfo.hobbies}
                                                 onChange={(e) => setUserInfo({ ...userInfo, hobbies: e.target.value })}
-                                                className="w-full p-2 bg-gray-800/70 border border-gray-600 rounded-md focus:ring-green-500 focus:border-green-500 text-white"
-                                                placeholder="Your hobbies"
+                                                className="bg-gray-900/70 border-gray-700 text-white"
+                                                placeholder="Reading, sports, music, etc."
                                             />
                                         </div>
-
-                                        <div>
-                                            <label htmlFor="achievements" className="block text-sm font-medium text-gray-300 mb-1">
+                                        <div className="space-y-2">
+                                            <label htmlFor="achievements" className="text-sm font-medium text-gray-300">
                                                 Achievements
                                             </label>
-                                            <input
-                                                type="text"
+                                            <Input
                                                 id="achievements"
                                                 value={userInfo.achievements}
                                                 onChange={(e) => setUserInfo({ ...userInfo, achievements: e.target.value })}
-                                                className="w-full p-2 bg-gray-800/70 border border-gray-600 rounded-md focus:ring-green-500 focus:border-green-500 text-white"
-                                                placeholder="Notable achievements"
+                                                className="bg-gray-900/70 border-gray-700 text-white"
+                                                placeholder="Awards, recognitions, etc."
                                             />
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <label htmlFor="background" className="block text-sm font-medium text-gray-300 mb-1">
+                                    <div className="space-y-2">
+                                        <label htmlFor="background" className="text-sm font-medium text-gray-300">
                                             Professional Background
                                         </label>
-                                        <textarea
+                                        <Textarea
                                             id="background"
                                             value={userInfo.background}
                                             onChange={(e) => setUserInfo({ ...userInfo, background: e.target.value })}
-                                            className="w-full h-20 p-2 bg-gray-800/70 border border-gray-600 rounded-md focus:ring-green-500 focus:border-green-500 text-white"
+                                            className="bg-gray-900/70 border-gray-700 text-white min-h-[100px]"
                                             placeholder="Brief description of your work experience"
-                                        ></textarea>
+                                        />
                                     </div>
-                                </div>
-                            </motion.div>
 
-                            <motion.div
-                                initial={{ x: 20, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: 0.5 }}
-                                className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50"
-                            >
-                                <h3 className="text-xl font-semibold mb-4 text-green-400">Interview Settings</h3>
-
-                                <div className="space-y-4">
-                                    <div>
-                                        <label htmlFor="optional-info" className="block text-sm font-medium text-gray-300 mb-1">
+                                    <div className="space-y-2">
+                                        <label htmlFor="optional-info" className="text-sm font-medium text-gray-300">
                                             Optional Information
                                         </label>
-                                        <textarea
+                                        <Textarea
                                             id="optional-info"
                                             value={userInfo.optional_info}
                                             onChange={(e) => setUserInfo({ ...userInfo, optional_info: e.target.value })}
-                                            className="w-full h-20 p-2 bg-gray-800/70 border border-gray-600 rounded-md focus:ring-green-500 focus:border-green-500 text-white"
-                                            placeholder="Service preferences, state cadre, etc."
-                                        ></textarea>
+                                            className="bg-gray-900/70 border-gray-700 text-white min-h-[100px]"
+                                            placeholder="Service preferences, state cadre, areas of interest, etc."
+                                        />
                                     </div>
-
-                                    <div>
-                                        <label htmlFor="num-questions" className="block text-sm font-medium text-gray-300 mb-1">
-                                            Number of Questions
-                                        </label>
-                                        <div className="flex items-center gap-4">
-                                            <input
-                                                type="range"
-                                                id="num-questions"
-                                                value={numQuestions}
-                                                onChange={(e) => setNumQuestions(Number(e.target.value))}
-                                                min="5"
-                                                max="15"
-                                                step="1"
-                                                className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500"
-                                            />
-                                            <span className="bg-green-800/60 text-white px-3 py-1 rounded-md font-medium">
-                                                {numQuestions}
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-gray-400 mt-1">
-                                            Recommended: 10 questions for a complete interview experience
-                                        </p>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
 
                         <motion.div
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.6 }}
-                            className="flex justify-center"
+                            transition={{ delay: 0.4 }}
+                            className="space-y-6"
                         >
-                            <motion.button
-                                onClick={configureAndStartInterview}
-                                whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(34, 197, 94, 0.5)" }}
-                                whileTap={{ scale: 0.95 }}
-                                className="px-8 py-4 rounded-full font-bold text-white bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 shadow-lg shadow-green-600/30 transition-all duration-300"
-                            >
-                                Start UPSC Interview
-                            </motion.button>
+                            <Card className="bg-gray-800/50 backdrop-blur-lg border-gray-700/50 shadow-xl">
+                                <CardHeader>
+                                    <CardTitle className="text-2xl text-green-400">Interview System</CardTitle>
+                                    <CardDescription className="text-gray-300">
+                                        How our UPSC interview simulator works
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="flex items-center gap-3 p-3 bg-gray-900/70 rounded-lg border border-gray-700/50">
+                                        <div className="bg-green-900/30 rounded-full p-2">
+                                            <Mic className="h-5 w-5 text-green-400" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-medium text-green-300">Voice Recognition</h3>
+                                            <p className="text-sm text-gray-400">Speak naturally as you would in a real interview</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 p-3 bg-gray-900/70 rounded-lg border border-gray-700/50">
+                                        <div className="bg-green-900/30 rounded-full p-2">
+                                            <Users className="h-5 w-5 text-green-400" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-medium text-green-300">Expert Panel</h3>
+                                            <p className="text-sm text-gray-400">Interact with AI panelists who simulate UPSC board members</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 p-3 bg-gray-900/70 rounded-lg border border-gray-700/50">
+                                        <div className="bg-green-900/30 rounded-full p-2">
+                                            <FileText className="h-5 w-5 text-green-400" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-medium text-green-300">Detailed Feedback</h3>
+                                            <p className="text-sm text-gray-400">Receive comprehensive analysis of your performance</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 p-3 bg-gray-900/70 rounded-lg border border-gray-700/50">
+                                        <div className="bg-green-900/30 rounded-full p-2">
+                                            <Sparkles className="h-5 w-5 text-green-400" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-medium text-green-300">Realistic Scenarios</h3>
+                                            <p className="text-sm text-gray-400">Questions adapted to your background and current affairs</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                                <CardFooter>
+                                    <motion.button
+                                        onClick={configureAndStartInterview}
+                                        whileHover={{ scale: 1.03 }}
+                                        whileTap={{ scale: 0.97 }}
+                                        className="w-full py-4 rounded-lg font-bold text-white bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 shadow-lg shadow-green-600/20 transition-all duration-300"
+                                    >
+                                        Start UPSC Interview
+                                    </motion.button>
+                                </CardFooter>
+                            </Card>
+
+                            <Card className="bg-gray-800/50 backdrop-blur-lg border-gray-700/50 shadow-xl">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-xl text-green-400">Tips for Success</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <div className="flex items-start gap-2">
+                                        <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                                        <p className="text-sm text-gray-300">Speak clearly and confidently</p>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                                        <p className="text-sm text-gray-300">Structure your answers logically</p>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                                        <p className="text-sm text-gray-300">Stay calm under pressure</p>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                                        <p className="text-sm text-gray-300">Be honest and authentic</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </motion.div>
-                    </motion.div>
-                </main >
-            </motion.div >
+                    </div>
+                </main>
+            </motion.div>
         )
     }
 
@@ -753,7 +808,6 @@ export default function UPSCInterviewSimulator() {
                         >
                             <div className="p-3 md:p-4 flex items-center justify-between gap-3 border-b border-gray-700/50">
                                 <div className="flex items-center gap-3">
-
                                     <Avatar className="h-10 w-10 md:h-12 md:w-12 border-2 border-green-700">
                                         <AvatarImage
                                             src={`/placeholder.svg?height=128&width=128&text=${userInfo.name.charAt(0)}`}
@@ -765,7 +819,6 @@ export default function UPSCInterviewSimulator() {
                                     <div>
                                         <h3 className="font-medium text-green-300">{userInfo.name || "You"}</h3>
                                         <p className="text-xs text-gray-400">{userInfo.education || "Candidate"}</p>
-
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -775,23 +828,16 @@ export default function UPSCInterviewSimulator() {
                                     <Badge
                                         variant="outline"
                                         className={`
-                                        ${connectionStatus === "recording"
+                    ${connectionStatus === "recording"
                                                 ? "bg-green-900/60 text-green-300 border-green-700"
                                                 : connectionStatus === "processing"
                                                     ? "bg-amber-900/60 text-amber-300 border-amber-700"
                                                     : "bg-gray-900/60 text-gray-300 border-gray-700"
                                             }
-                                    `}
+                  `}
                                     >
                                         {connectionStatus === "recording" ? "Live" : connectionStatus}
                                     </Badge>
-                                </div>
-                                <div className="w-full md:w-64 items-center">
-                                    <InterviewProgress
-                                        currentQuestion={questions.length}
-                                        totalQuestions={numQuestions}
-                                        interviewState={interviewState}
-                                    />
                                 </div>
                             </div>
 
@@ -890,13 +936,6 @@ export default function UPSCInterviewSimulator() {
                             >
                                 {currentQuestion ? (
                                     <div className="space-y-2">
-                                        {/* {currentQuestion && currentQuestion.board_member && (
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline" className="bg-green-900/60 text-green-300 border-green-700">
-                                                    {String(currentQuestion.board_member)}
-                                                </Badge>
-                                            </div>
-                                        )} */}
                                         <p className="text-gray-200 text-base md:text-lg">{currentQuestion.question}</p>
                                         <QuestionReader question={currentQuestion.question || ""} questionRead={questionRead} setQuestionRead={setQuestionRead} />
                                     </div>
@@ -958,39 +997,7 @@ export default function UPSCInterviewSimulator() {
                             disabled={interviewComplete}
                             title={webcamEnabled ? "Turn Off Camera" : "Turn On Camera"}
                         >
-                            {webcamEnabled ? (
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="20"
-                                    height="20"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    className="w-5 h-5"
-                                >
-                                    <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
-                                    <line x1="1" y1="1" x2="23" y2="23" />
-                                </svg>
-                            ) : (
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="20"
-                                    height="20"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    className="w-5 h-5"
-                                >
-                                    <path d="M23 7l-7 5 7 5V7z" />
-                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                                </svg>
-                            )}
+                            {webcamEnabled ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
                         </motion.button>
 
                         <motion.button
@@ -1099,8 +1106,6 @@ export default function UPSCInterviewSimulator() {
                                 {showChat && (
                                     <div className="space-y-3">
                                         {questions.map((q, index) => {
-                                            // Ensure all values are strings to prevent rendering objects directly
-                                            const boardMember = q.board_member ? String(q.board_member) : "Chairperson"
                                             const question = q.question ? String(q.question) : ""
                                             const feedback = q.feedback ? String(q.feedback) : ""
 
@@ -1112,7 +1117,7 @@ export default function UPSCInterviewSimulator() {
                                                     transition={{ delay: index * 0.05 }}
                                                     className="rounded-xl p-3 bg-gray-900/50 border border-gray-700/50"
                                                 >
-                                                    <p className="text-sm font-medium mb-1 text-green-300">{boardMember}:</p>
+                                                    <p className="text-sm font-medium mb-1 text-green-300">Panel :</p>
                                                     <p className="text-gray-200 text-sm">{question}</p>
                                                     {feedback && (
                                                         <div className="mt-2 pt-2 border-t border-gray-700/50">
@@ -1188,7 +1193,6 @@ export default function UPSCInterviewSimulator() {
                     </div>
                 </div>
             )}
-
         </motion.div>
     )
 }

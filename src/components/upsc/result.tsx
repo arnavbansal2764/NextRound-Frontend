@@ -49,14 +49,6 @@ export function Result({ summaryData, onContinue, onNewInterview }: ResultProps)
     const userName = userInfo.name || "Candidate"
     const userEducation = userInfo.education || "Not specified"
 
-    // Extract scores with fallbacks
-    const scores = summaryData.scores || {
-        communication: 7,
-        knowledge: 7,
-        presence: 7,
-        overall: 7,
-    }
-
     // Extract conversation/questions
     const conversation = summaryData.conversation || []
     const boardMembers = summaryData.board_members || []
@@ -144,96 +136,7 @@ export function Result({ summaryData, onContinue, onNewInterview }: ResultProps)
                                     </div>
                                 </motion.div>
 
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ delay: 0.5, duration: 0.5 }}
-                                    className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6"
-                                >
-                                    <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
-                                        <p className="text-gray-400 text-sm mb-1">Communication</p>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xl font-bold text-green-400">{scores.communication}</span>
-                                            <span className="text-xs text-gray-500">/10</span>
-                                        </div>
-                                        <motion.div
-                                            className="h-1 bg-gray-700 rounded-full mt-2 overflow-hidden"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.7 }}
-                                        >
-                                            <motion.div
-                                                className="h-full bg-green-500 rounded-full"
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${scores.communication * 10}%` }}
-                                                transition={{ delay: 0.8, duration: 1 }}
-                                            />
-                                        </motion.div>
-                                    </div>
 
-                                    <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
-                                        <p className="text-gray-400 text-sm mb-1">Knowledge</p>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xl font-bold text-green-400">{scores.knowledge}</span>
-                                            <span className="text-xs text-gray-500">/10</span>
-                                        </div>
-                                        <motion.div
-                                            className="h-1 bg-gray-700 rounded-full mt-2 overflow-hidden"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.7 }}
-                                        >
-                                            <motion.div
-                                                className="h-full bg-green-500 rounded-full"
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${scores.knowledge * 10}%` }}
-                                                transition={{ delay: 0.9, duration: 1 }}
-                                            />
-                                        </motion.div>
-                                    </div>
-
-                                    <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
-                                        <p className="text-gray-400 text-sm mb-1">Presence</p>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xl font-bold text-green-400">{scores.presence}</span>
-                                            <span className="text-xs text-gray-500">/10</span>
-                                        </div>
-                                        <motion.div
-                                            className="h-1 bg-gray-700 rounded-full mt-2 overflow-hidden"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.7 }}
-                                        >
-                                            <motion.div
-                                                className="h-full bg-green-500 rounded-full"
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${scores.presence * 10}%` }}
-                                                transition={{ delay: 1, duration: 1 }}
-                                            />
-                                        </motion.div>
-                                    </div>
-
-                                    <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
-                                        <p className="text-gray-400 text-sm mb-1">Overall</p>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xl font-bold text-green-400">{scores.overall}</span>
-                                            <span className="text-xs text-gray-500">/10</span>
-                                        </div>
-                                        <motion.div
-                                            className="h-1 bg-gray-700 rounded-full mt-2 overflow-hidden"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.7 }}
-                                        >
-                                            <motion.div
-                                                className="h-full bg-green-500 rounded-full"
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${scores.overall * 10}%` }}
-                                                transition={{ delay: 1.1, duration: 1 }}
-                                            />
-                                        </motion.div>
-                                    </div>
-                                </motion.div>
                             </div>
                         </div>
                     </motion.div>
@@ -285,39 +188,6 @@ export function Result({ summaryData, onContinue, onNewInterview }: ResultProps)
                                                 </CardHeader>
                                                 <CardContent>
                                                     <div className="space-y-4">
-                                                        <div>
-                                                            <div className="flex justify-between mb-1">
-                                                                <span className="text-sm text-gray-300">Overall Performance</span>
-                                                                <span className="text-sm text-green-400">{scores.overall}/10</span>
-                                                            </div>
-                                                            <Progress value={scores.overall * 10} className="h-2" />
-                                                        </div>
-
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                            <div>
-                                                                <div className="flex justify-between mb-1">
-                                                                    <span className="text-sm text-gray-300">Communication</span>
-                                                                    <span className="text-sm text-green-400">{scores.communication}/10</span>
-                                                                </div>
-                                                                <Progress value={scores.communication * 10} className="h-2" />
-                                                            </div>
-
-                                                            <div>
-                                                                <div className="flex justify-between mb-1">
-                                                                    <span className="text-sm text-gray-300">Knowledge</span>
-                                                                    <span className="text-sm text-green-400">{scores.knowledge}/10</span>
-                                                                </div>
-                                                                <Progress value={scores.knowledge * 10} className="h-2" />
-                                                            </div>
-
-                                                            <div>
-                                                                <div className="flex justify-between mb-1">
-                                                                    <span className="text-sm text-gray-300">Presence</span>
-                                                                    <span className="text-sm text-green-400">{scores.presence}/10</span>
-                                                                </div>
-                                                                <Progress value={scores.presence * 10} className="h-2" />
-                                                            </div>
-                                                        </div>
 
                                                         {overallFeedback && (
                                                             <div className="pt-4 border-t border-gray-700">
@@ -402,10 +272,6 @@ export function Result({ summaryData, onContinue, onNewInterview }: ResultProps)
                                                         <div className="flex justify-between items-center">
                                                             <span className="text-sm text-gray-300">Total Questions</span>
                                                             <span className="text-sm font-medium text-white">{conversation.length || 0}</span>
-                                                        </div>
-                                                        <div className="flex justify-between items-center">
-                                                            <span className="text-sm text-gray-300">Average Score</span>
-                                                            <span className="text-sm font-medium text-white">{scores.overall}/10</span>
                                                         </div>
                                                         <div className="flex justify-between items-center">
                                                             <span className="text-sm text-gray-300">Interview Date</span>
@@ -613,44 +479,7 @@ export function Result({ summaryData, onContinue, onNewInterview }: ResultProps)
                                                     </div>
 
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                        <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700/50 shadow-md">
-                                                            <h3 className="text-lg font-medium text-green-300 mb-4 flex items-center">
-                                                                <Star className="h-5 w-5 mr-2 text-green-400" />
-                                                                Strengths
-                                                            </h3>
-                                                            <div className="space-y-3">
-                                                                <div className="flex items-start gap-2">
-                                                                    <div className="bg-green-900/30 rounded-full p-1 mt-0.5">
-                                                                        <Award className="h-4 w-4 text-green-400" />
-                                                                    </div>
-                                                                    <p className="text-gray-300">
-                                                                        {scores.communication >= 7
-                                                                            ? "Good communication skills demonstrated throughout the interview."
-                                                                            : "Areas for improvement in communication identified."}
-                                                                    </p>
-                                                                </div>
-                                                                <div className="flex items-start gap-2">
-                                                                    <div className="bg-green-900/30 rounded-full p-1 mt-0.5">
-                                                                        <BookOpen className="h-4 w-4 text-green-400" />
-                                                                    </div>
-                                                                    <p className="text-gray-300">
-                                                                        {scores.knowledge >= 7
-                                                                            ? "Strong knowledge base and subject matter expertise."
-                                                                            : "Consider deepening your knowledge in key subject areas."}
-                                                                    </p>
-                                                                </div>
-                                                                <div className="flex items-start gap-2">
-                                                                    <div className="bg-green-900/30 rounded-full p-1 mt-0.5">
-                                                                        <User className="h-4 w-4 text-green-400" />
-                                                                    </div>
-                                                                    <p className="text-gray-300">
-                                                                        {scores.presence >= 7
-                                                                            ? "Excellent presence and confidence during the interview."
-                                                                            : "Work on building confidence and interview presence."}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
+
 
                                                         <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700/50 shadow-md">
                                                             <h3 className="text-lg font-medium text-amber-300 mb-4 flex items-center">
@@ -752,7 +581,7 @@ export function Result({ summaryData, onContinue, onNewInterview }: ResultProps)
                 </div>
             </main>
 
-            
+
         </div>
     )
 }
