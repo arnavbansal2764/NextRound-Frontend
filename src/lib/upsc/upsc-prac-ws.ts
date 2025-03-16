@@ -1,4 +1,3 @@
-
 export interface UPSCInterviewConfig {
   user_info: {
     name: string;
@@ -9,6 +8,7 @@ export interface UPSCInterviewConfig {
     optional_info?: string;
   };
   num_questions?: number;
+  language?: "english" | "hindi";  // Add language option to config
 }
 
 export interface UPSCInterviewResponse {
@@ -19,6 +19,7 @@ export interface UPSCInterviewResponse {
   feedback?: string;
   setup_info?: any;
   is_final?: boolean;
+  language?: string;  // Add language field
 }
 
 export interface UPSCInterviewSummary {
@@ -53,8 +54,10 @@ export class UPSCInterviewWebSocket {
   private onErrorListeners: ((error: string) => void)[] = [];
   private onSummaryListeners: ((summary: UPSCInterviewSummary) => void)[] = [];
   private onSetupInfoListeners: ((setupInfo: any) => void)[] = [];
+  private onLanguagePromptListeners: ((options: string[]) => void)[] = []; // New listener for language prompt
+  private selectedLanguage: string = "English"; // Default language
 
-  constructor(private serverUrl: string = "ws://localhost:8766") {}
+  constructor(private serverUrl: string = "ws://localhost:8766") { }
 
   public addQuestionListener(listener: (question: UPSCInterviewResponse) => void): void {
     this.onQuestionListeners.push(listener);
@@ -69,6 +72,7 @@ export class UPSCInterviewWebSocket {
   }
 
   public addSummaryListener(listener: (summary: UPSCInterviewSummary) => void): void {
+    console.log("summary listener",listener);
     this.onSummaryListeners.push(listener);
   }
 
@@ -76,38 +80,61 @@ export class UPSCInterviewWebSocket {
     this.onSetupInfoListeners.push(listener);
   }
 
+  public addLanguagePromptListener(listener: (options: string[]) => void): void {
+    this.onLanguagePromptListeners.push(listener);
+  }
+
   public configure(config: UPSCInterviewConfig): Promise<void> {
+    // Store language preference if provided in config
+    if (config.language) {
+      this.selectedLanguage = config.language;
+    }
+
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(this.serverUrl);
         this.ws.binaryType = "arraybuffer";
-        
+
         this.ws.onopen = () => {
           console.log("WebSocket connected, sending UPSC interview configuration");
           if (this.ws) {
             this.ws.send(JSON.stringify(config));
           }
         };
-        
+
         this.ws.onerror = (error) => {
           console.error("WebSocket error:", error);
           this.notifyError("Connection error occurred");
           reject(error);
         };
-        
+
         this.ws.onmessage = (event) => {
           if (typeof event.data === "string") {
             try {
               const jsonData = JSON.parse(event.data);
-              
-              if (jsonData.status === "ready") {
+
+              // Handle language selection prompt
+              if (jsonData.status === "language_selection") {
+                console.log("Language selection prompt received:", jsonData);
+                if (jsonData.options && Array.isArray(jsonData.options)) {
+                  this.notifyLanguagePrompt(jsonData.options);
+                }
+                // Don't resolve the promise yet, wait for language selection
+              }
+              else if (jsonData.status === "ready") {
                 this.isConfigured = true;
                 this.notifyStatusChange("ready");
-                
+
+                // Store language if provided
+                if (jsonData.language) {
+                  this.selectedLanguage = jsonData.language;
+                  console.log(`Language set to: ${this.selectedLanguage}`);
+                }
+
                 if (jsonData.setup_info) {
                   this.notifySetupInfo(jsonData.setup_info);
                 }
-                
+
                 resolve();
               } else if (jsonData.status === "error") {
                 this.notifyError(jsonData.message);
@@ -115,6 +142,11 @@ export class UPSCInterviewWebSocket {
               } else if (jsonData.status === "goodbye") {
                 this.isConfigured = false;
                 this.notifyStatusChange("complete");
+
+                // If language is provided in the goodbye message, update it
+                if (jsonData.language) {
+                  this.selectedLanguage = jsonData.language;
+                }
               } else if (jsonData.status === "summary") {
                 if (jsonData.data) {
                   this.notifySummary(jsonData.data);
@@ -129,13 +161,13 @@ export class UPSCInterviewWebSocket {
             }
           }
         };
-        
+
         this.ws.onclose = () => {
           this.isConfigured = false;
           this.notifyStatusChange("disconnected");
           console.log("WebSocket connection closed");
         };
-        
+
       } catch (error) {
         console.error("Error configuring UPSC interview:", error);
         this.notifyError("Failed to configure UPSC interview");
@@ -148,7 +180,7 @@ export class UPSCInterviewWebSocket {
     if (!this.isConfigured) {
       throw new Error("UPSC Interview is not configured. Call configure() first.");
     }
-    
+
     try {
       // Get audio stream
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -167,19 +199,19 @@ export class UPSCInterviewWebSocket {
       // Create script processor for raw audio access
       const processor = audioContext.createScriptProcessor(4096, 1, 1);
       this.processor = processor;
-      
+
       // Process audio data
       processor.onaudioprocess = (e:any) => {
         if (this.ws && this.ws.readyState === WebSocket.OPEN && !this.isAudioPaused) {
           // Get raw PCM data from input channel
           const inputData = e.inputBuffer.getChannelData(0);
-          
+
           // Convert Float32Array to Int16Array (16-bit PCM)
           const pcmData = new Int16Array(inputData.length);
           for (let i = 0; i < inputData.length; i++) {
             pcmData[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
           }
-          
+
           // Send the PCM data to the server
           this.ws.send(pcmData.buffer);
         }
@@ -188,7 +220,7 @@ export class UPSCInterviewWebSocket {
       // Connect the audio nodes
       source.connect(processor);
       processor.connect(audioContext.destination);
-      
+
       this.isRecording = true;
       this.notifyStatusChange("recording");
       console.log("Recording started with correct audio parameters");
@@ -205,17 +237,17 @@ export class UPSCInterviewWebSocket {
       this.source.disconnect();
       this.processor.disconnect();
     }
-    
+
     // Stop all tracks in the stream
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
     }
-    
+
     // Close the audio context
     if (this.audioContext && this.audioContext.state !== 'closed') {
       this.audioContext.close();
     }
-    
+
     this.isRecording = false;
     this.notifyStatusChange("paused");
     console.log("Recording stopped");
@@ -223,7 +255,7 @@ export class UPSCInterviewWebSocket {
 
   public pauseAudio(): void {
     if (!this.isRecording) return;
-    
+
     // Disconnect the processor but keep the stream and context alive
     this.isAudioPaused = true;
     console.log("Microphone paused - audio transmission stopped");
@@ -232,7 +264,7 @@ export class UPSCInterviewWebSocket {
 
   public resumeAudio(): void {
     if (!this.isRecording) return;
-    
+
     this.isAudioPaused = false;
     console.log("Microphone resumed - audio transmission restarted");
     this.notifyStatusChange("recording");
@@ -265,13 +297,13 @@ export class UPSCInterviewWebSocket {
 
   public disconnect(): void {
     this.stopRecording();
-    
+
     // Close WebSocket connection
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
-    
+
     this.isConfigured = false;
     this.notifyStatusChange("disconnected");
     console.log("Disconnected, all resources cleaned up");
@@ -287,6 +319,24 @@ export class UPSCInterviewWebSocket {
 
   public get audioPaused(): boolean {
     return this.isAudioPaused;
+  }
+
+  // Send language preference to the server
+  public selectLanguage(language: string): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.selectedLanguage = language.toLowerCase();
+      this.ws.send(JSON.stringify({
+        type: "language_selection",
+        language: this.selectedLanguage
+      }));
+      console.log(`Language preference sent: ${this.selectedLanguage}`);
+    } else {
+      console.error("Cannot send language preference: connection not open");
+    }
+  }
+
+  public getSelectedLanguage(): string {
+    return this.selectedLanguage;
   }
 
   private notifyQuestion(question: UPSCInterviewResponse): void {
@@ -307,5 +357,9 @@ export class UPSCInterviewWebSocket {
 
   private notifySetupInfo(setupInfo: any): void {
     this.onSetupInfoListeners.forEach(listener => listener(setupInfo));
+  }
+
+  private notifyLanguagePrompt(options: string[]): void {
+    this.onLanguagePromptListeners.forEach(listener => listener(options));
   }
 }

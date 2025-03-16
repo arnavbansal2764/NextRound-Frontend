@@ -79,3 +79,6 @@ python index.py
 cd similarity_score
 python index.py
 ```
+
+
+pm2 start npm --name "nextapp" -- start
