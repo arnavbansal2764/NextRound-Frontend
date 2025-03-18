@@ -331,8 +331,8 @@ export default function UPSCInterviewSimulatorOld() {
         // Update the summary listener to handle different return types
         interviewWsRef.current.addSummaryListener((summaryData) => {
             // Enhanced debug logging
-            console.log("Received summary data:", summaryData)
-            console.log("Summary data type:", typeof summaryData)
+          // console("Received summary data:", summaryData)
+          // console("Summary data type:", typeof summaryData)
 
             // Store raw data for reference regardless of format
             setRawSummaryData(summaryData)
@@ -342,7 +342,7 @@ export default function UPSCInterviewSimulatorOld() {
 
                 // Case 1: Direct UPSCInterviewSummary format
                 if (summaryData && summaryData.scores && summaryData.overall_feedback && Array.isArray(summaryData.questions)) {
-                    console.log("Format detected: Direct UPSCInterviewSummary")
+                  // console("Format detected: Direct UPSCInterviewSummary")
                     transformedSummary = summaryData as UPSCInterviewSummary
                 }
 
@@ -419,7 +419,7 @@ export default function UPSCInterviewSimulatorOld() {
 
         // Add language prompt listener
         interviewWsRef.current.addLanguagePromptListener((options) => {
-            console.log("Language options received:", options)
+          // console("Language options received:", options)
             setLanguageOptions(options)
             setShowLanguagePrompt(true)
             // Move to step 3 when language options are received

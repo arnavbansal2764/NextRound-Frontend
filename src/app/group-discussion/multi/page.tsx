@@ -96,7 +96,7 @@ export default function GroupDiscussion() {
 
     // Set up event listeners
     gdWsRef.current.addMessageListener((name:any, content:any) => {
-      console.log(`Received message from ${name}: ${content}`)
+      // console.log(`Received message from ${name}: ${content}`)
       setMessages((prev) => {
         // Check if the previous message was from the same user
         if (prev.length > 0 && prev[prev.length - 1].name === name) {

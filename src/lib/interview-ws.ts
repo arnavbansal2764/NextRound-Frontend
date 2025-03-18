@@ -62,7 +62,7 @@ export class InterviewWebSocket {
         this.ws.binaryType = "arraybuffer";
         
         this.ws.onopen = () => {
-          console.log("WebSocket connected, sending configuration");
+        // console("WebSocket connected, sending configuration");
           if (this.ws) {
             this.ws.send(JSON.stringify(config));
           }
@@ -106,7 +106,7 @@ export class InterviewWebSocket {
         this.ws.onclose = () => {
           this.isConfigured = false;
           this.notifyStatusChange("disconnected");
-          console.log("WebSocket connection closed");
+        // console("WebSocket connection closed");
         };
         
       } catch (error) {
@@ -165,7 +165,7 @@ export class InterviewWebSocket {
       
       this.isRecording = true;
       this.notifyStatusChange("recording");
-      console.log("Recording started with correct audio parameters");
+    // console("Recording started with correct audio parameters");
     } catch (error) {
       console.error("Error starting recording:", error);
       this.notifyError("Failed to start recording");
@@ -192,7 +192,7 @@ export class InterviewWebSocket {
     
     this.isRecording = false;
     this.notifyStatusChange("paused");
-    console.log("Recording stopped");
+  // console("Recording stopped");
   }
 
   // Add methods to pause and resume audio transmission
@@ -203,7 +203,7 @@ export class InterviewWebSocket {
     if (this.source && this.processor) {
       this.source.disconnect(this.processor);
       this.isAudioPaused = true;
-      console.log("Microphone paused - audio transmission stopped");
+    // console("Microphone paused - audio transmission stopped");
       this.notifyStatusChange("muted");
     }
   }
@@ -215,7 +215,7 @@ export class InterviewWebSocket {
     if (this.source && this.processor && this.audioContext) {
       this.source.connect(this.processor);
       this.isAudioPaused = false;
-      console.log("Microphone resumed - audio transmission restarted");
+    // console("Microphone resumed - audio transmission restarted");
       this.notifyStatusChange("recording");
     }
   }
@@ -240,7 +240,7 @@ export class InterviewWebSocket {
     
     this.isConfigured = false;
     this.notifyStatusChange("disconnected");
-    console.log("Disconnected, all resources cleaned up");
+  // console("Disconnected, all resources cleaned up");
   }
 
   public get configured(): boolean {

@@ -283,7 +283,7 @@ const TutorResponseDisplay: React.FC<TutorResponseDisplayProps> = ({
     }, [content]) // Add content as a dependency to restart animation when content changes
 
     // Add this before the return statement
-    console.log("Assessment data:", assessmentData)
+  // console("Assessment data:", assessmentData)
 
     return (
         <motion.div

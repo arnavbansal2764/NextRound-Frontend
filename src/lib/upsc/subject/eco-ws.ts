@@ -1,10 +1,12 @@
 export interface EcoConfig {
   difficulty?: "easy" | "medium" | "hard";
+  language?: "english" | "hindi";
 }
 
 export interface EcoResponse {
   status?: string;
   message?: string;
+  language?: string;
 }
 
 export type EcoEventListener = (message: string) => void;
@@ -21,6 +23,8 @@ export class EcoWebSocket {
   private onMessageListeners: EcoEventListener[] = [];
   private onStatusChangeListeners: ((status: string) => void)[] = [];
   private onErrorListeners: ((error: string) => void)[] = [];
+  private onLanguagePromptListeners: ((options: string[]) => void)[] = [];
+  private selectedLanguage: string = "english";
 
   constructor(private serverUrl: string = "ws://localhost:8768") {}
 
@@ -35,15 +39,24 @@ export class EcoWebSocket {
   public addErrorListener(listener: (error: string) => void): void {
     this.onErrorListeners.push(listener);
   }
+  
+  public addLanguagePromptListener(listener: (options: string[]) => void): void {
+    this.onLanguagePromptListeners.push(listener);
+  }
 
   public configure(config: EcoConfig = {}): Promise<void> {
+    // Store language preference if provided in config
+    if (config.language) {
+      this.selectedLanguage = config.language;
+    }
+    
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(this.serverUrl);
         this.ws.binaryType = "arraybuffer";
         
         this.ws.onopen = () => {
-          console.log("WebSocket connected, sending Economics configuration");
+        // console("WebSocket connected, sending Economics configuration");
           if (this.ws) {
             this.ws.send(JSON.stringify(config));
           }
@@ -60,7 +73,21 @@ export class EcoWebSocket {
             try {
               // Try to parse as JSON for status messages
               const jsonData = JSON.parse(event.data);
-              if (jsonData.status === "ready") {
+              
+              // Handle language selection prompt
+              if (jsonData.status === "language_selection") {
+              // console("Language selection prompt received:", jsonData);
+                if (jsonData.options && Array.isArray(jsonData.options)) {
+                  this.notifyLanguagePrompt(jsonData.options);
+                }
+                this.notifyMessage(jsonData.message || "Please select a language");
+                // Don't resolve the promise yet, wait for language selection
+              }
+              else if (jsonData.status === "ready") {
+                // Store language if provided
+                if (jsonData.language) {
+                  this.selectedLanguage = jsonData.language;
+                }
                 this.isConfigured = true;
                 this.notifyStatusChange("ready");
                 resolve();
@@ -71,6 +98,19 @@ export class EcoWebSocket {
                 this.isConfigured = false;
                 this.notifyStatusChange("complete");
                 this.notifyMessage(`✨ ${jsonData.message}`);
+                
+                // Update language preference if specified in response
+                if (jsonData.language) {
+                  this.selectedLanguage = jsonData.language;
+                }
+              } else if (jsonData.english && jsonData.hindi) {
+                // Handle responses with multiple language options
+                const message = this.selectedLanguage === "hindi" ? 
+                  jsonData.hindi : jsonData.english;
+                this.notifyMessage(message);
+              } else if (jsonData.preferred) {
+                // Handle responses with a preferred language field
+                this.notifyMessage(jsonData.preferred);
               }
             } catch (e) {
               // If not JSON, treat as regular interviewer response
@@ -82,7 +122,7 @@ export class EcoWebSocket {
         this.ws.onclose = () => {
           this.isConfigured = false;
           this.notifyStatusChange("disconnected");
-          console.log("WebSocket connection closed");
+        // console("WebSocket connection closed");
         };
         
       } catch (error) {
@@ -91,6 +131,24 @@ export class EcoWebSocket {
         reject(error);
       }
     });
+  }
+
+  // Send language preference to the server
+  public selectLanguage(language: string): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.selectedLanguage = language.toLowerCase();
+      this.ws.send(JSON.stringify({
+        type: "LANGUAGE_SELECTION",
+        language: this.selectedLanguage
+      }));
+    // console(`Language preference sent: ${this.selectedLanguage}`);
+    } else {
+      console.error("Cannot send language preference: connection not open");
+    }
+  }
+  
+  public getSelectedLanguage(): string {
+    return this.selectedLanguage;
   }
 
   public async startRecording(): Promise<void> {
@@ -141,7 +199,7 @@ export class EcoWebSocket {
       
       this.isRecording = true;
       this.notifyStatusChange("recording");
-      console.log("Economics recording started with correct audio parameters");
+    // console("Economics recording started with correct audio parameters");
     } catch (error) {
       console.error("Error starting Economics recording:", error);
       this.notifyError("Failed to start recording");
@@ -168,7 +226,7 @@ export class EcoWebSocket {
     
     this.isRecording = false;
     this.notifyStatusChange("paused");
-    console.log("Economics recording stopped");
+  // console("Economics recording stopped");
   }
 
   public pauseAudio(): void {
@@ -176,7 +234,7 @@ export class EcoWebSocket {
     
     this.isAudioPaused = true;
     this.notifyStatusChange("muted");
-    console.log("Economics microphone paused - audio transmission stopped");
+  // console("Economics microphone paused - audio transmission stopped");
   }
 
   public resumeAudio(): void {
@@ -184,7 +242,7 @@ export class EcoWebSocket {
     
     this.isAudioPaused = false;
     this.notifyStatusChange("recording");
-    console.log("Economics microphone resumed - audio transmission restarted");
+  // console("Economics microphone resumed - audio transmission restarted");
   }
 
   public endInterview(): void {
@@ -215,7 +273,7 @@ export class EcoWebSocket {
     
     this.isConfigured = false;
     this.notifyStatusChange("disconnected");
-    console.log("Disconnected from Economics interview, all resources cleaned up");
+  // console("Disconnected from Economics interview, all resources cleaned up");
   }
 
   public get configured(): boolean {
@@ -240,5 +298,9 @@ export class EcoWebSocket {
 
   private notifyError(error: string): void {
     this.onErrorListeners.forEach(listener => listener(error));
+  }
+  
+  private notifyLanguagePrompt(options: string[]): void {
+    this.onLanguagePromptListeners.forEach(listener => listener(options));
   }
 }

@@ -58,7 +58,7 @@ export class TutorWebSocket {
         this.ws.binaryType = "arraybuffer";
         
         this.ws.onopen = () => {
-          console.log("WebSocket connected to tutor service");
+        // console("WebSocket connected to tutor service");
           this.isConnected = true;
           this.imagesSent = 0; // Reset image counter on new connection
           this.notifyStatusChange("connected");
@@ -112,7 +112,7 @@ export class TutorWebSocket {
         this.ws.onclose = () => {
           this.isConnected = false;
           this.notifyStatusChange("disconnected");
-          console.log("WebSocket connection to tutor closed");
+        // console("WebSocket connection to tutor closed");
         };
         
       } catch (error) {
@@ -215,7 +215,7 @@ export class TutorWebSocket {
       
       this.isRecording = true;
       this.notifyStatusChange("recording");
-      console.log("Recording started with correct audio parameters");
+    // console("Recording started with correct audio parameters");
     } catch (error) {
       console.error("Error starting recording:", error);
       this.notifyError("Failed to start recording");
@@ -242,7 +242,7 @@ export class TutorWebSocket {
     
     this.isRecording = false;
     this.notifyStatusChange("paused");
-    console.log("Recording stopped");
+  // console("Recording stopped");
   }
 
   // Add methods to pause and resume audio transmission
@@ -251,7 +251,7 @@ export class TutorWebSocket {
     
     this.isAudioPaused = true;
     this.notifyStatusChange("muted");
-    console.log("Microphone paused - audio transmission stopped");
+  // console("Microphone paused - audio transmission stopped");
   }
 
   public resumeAudio(): void {
@@ -259,7 +259,7 @@ export class TutorWebSocket {
     
     this.isAudioPaused = false;
     this.notifyStatusChange("recording");
-    console.log("Microphone resumed - audio transmission restarted");
+  // console("Microphone resumed - audio transmission restarted");
   }
 
   public disconnect(): void {
@@ -274,7 +274,7 @@ export class TutorWebSocket {
     this.isConnected = false;
     this.imagesSent = 0; // Reset image counter
     this.notifyStatusChange("disconnected");
-    console.log("Disconnected, all resources cleaned up");
+  // console("Disconnected, all resources cleaned up");
   }
 
   public get connected(): boolean {

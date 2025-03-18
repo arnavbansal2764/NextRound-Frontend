@@ -1,5 +1,6 @@
 export interface HCSConfig {
   candidate_info: string;
+  language?: "english" | "hindi";
 }
 
 export interface BilingualResponse {
@@ -18,11 +19,13 @@ export class HCSWebSocket {
   private isRecording = false;
   private isConfigured = false;
   private isAudioPaused = false;
+  private selectedLanguage: string = "english";
   private onMessageListeners: HCSEventListener[] = [];
   private onStatusChangeListeners: ((status: string) => void)[] = [];
   private onErrorListeners: ((error: string) => void)[] = [];
+  private onLanguagePromptListeners: ((options: string[]) => void)[] = [];
 
-  constructor(private serverUrl: string = "wss://ws3.nextround.tech/hcs") {}
+  constructor(private serverUrl: string = "ws://localhost:8766") { }
 
   public addMessageListener(listener: HCSEventListener): void {
     this.onMessageListeners.push(listener);
@@ -36,32 +39,59 @@ export class HCSWebSocket {
     this.onErrorListeners.push(listener);
   }
 
+  public addLanguagePromptListener(listener: (options: string[]) => void): void {
+    this.onLanguagePromptListeners.push(listener);
+  }
+
   public configure(config: HCSConfig): Promise<void> {
+    // Store language preference if provided in config
+    if (config.language) {
+      this.selectedLanguage = config.language;
+    }
+
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(this.serverUrl);
         this.ws.binaryType = "arraybuffer";
-        
+
         this.ws.onopen = () => {
-          console.log("WebSocket connected, sending configuration");
+        // console("WebSocket connected, sending configuration");
           if (this.ws) {
             this.ws.send(JSON.stringify(config));
           }
         };
-        
+
         this.ws.onerror = (error) => {
           console.error("WebSocket error:", error);
           this.notifyError("Connection error occurred");
           reject(error);
         };
-        
+
         this.ws.onmessage = (event) => {
           if (typeof event.data === "string") {
             try {
               // Handle JSON messages
               const jsonData = JSON.parse(event.data);
-              
-              if (jsonData.status === "ready") {
+
+              // Handle language selection prompt
+              if (jsonData.status === "language_selection") {
+              // console("Language selection prompt received:", jsonData);
+                if (jsonData.options && Array.isArray(jsonData.options)) {
+                  this.notifyLanguagePrompt(jsonData.options);
+                }
+                this.notifyMessage({
+                  english: jsonData.message,
+                  hindi: jsonData.message
+                });
+                // Don't resolve the promise yet, wait for language selection
+              }
+              else if (jsonData.status === "ready") {
+                // Store language if provided
+                if (jsonData.language) {
+                  this.selectedLanguage = jsonData.language;
+                // console(`Language set to: ${this.selectedLanguage}`);
+                }
+
                 this.isConfigured = true;
                 this.notifyStatusChange("ready");
                 resolve();
@@ -72,6 +102,11 @@ export class HCSWebSocket {
                 this.isConfigured = false;
                 this.notifyStatusChange("complete");
                 this.notifyError(`✨ ${jsonData.message}`);
+
+                // If language is provided in the goodbye message, update it
+                if (jsonData.language) {
+                  this.selectedLanguage = jsonData.language;
+                }
               } else if (jsonData.english || jsonData.hindi) {
                 // Handle bilingual response
                 this.notifyMessage({
@@ -86,13 +121,13 @@ export class HCSWebSocket {
             }
           }
         };
-        
+
         this.ws.onclose = () => {
           this.isConfigured = false;
           this.notifyStatusChange("disconnected");
-          console.log("WebSocket connection closed");
+        // console("WebSocket connection closed");
         };
-        
+
       } catch (error) {
         console.error("Error configuring HCS interview:", error);
         this.notifyError("Failed to configure HCS interview");
@@ -101,11 +136,29 @@ export class HCSWebSocket {
     });
   }
 
+  // Send language preference to the server
+  public selectLanguage(language: string): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.selectedLanguage = language.toLowerCase();
+      this.ws.send(JSON.stringify({
+        type: "LANGUAGE_SELECTION",
+        language: this.selectedLanguage
+      }));
+    // console(`Language preference sent: ${this.selectedLanguage}`);
+    } else {
+      console.error("Cannot send language preference: connection not open");
+    }
+  }
+
+  public getSelectedLanguage(): string {
+    return this.selectedLanguage;
+  }
+
   public async startRecording(): Promise<void> {
     if (!this.isConfigured) {
       throw new Error("Interview is not configured. Call configure() first.");
     }
-    
+
     try {
       // Get audio stream
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -124,20 +177,20 @@ export class HCSWebSocket {
       // Create script processor for raw audio access
       const processor = audioContext.createScriptProcessor(4096, 1, 1);
       this.processor = processor;
-      
+
       // Process audio data
       processor.onaudioprocess = (e:any) => {
         if (this.ws && this.ws.readyState === WebSocket.OPEN && !this.isAudioPaused) {
           // Get raw PCM data from input channel
           const inputData = e.inputBuffer.getChannelData(0);
-          
+
           // Convert Float32Array to Int16Array (16-bit PCM)
           const pcmData = new Int16Array(inputData.length);
           for (let i = 0; i < inputData.length; i++) {
             // Convert float (-1.0 to 1.0) to int16 (-32768 to 32767)
             pcmData[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
           }
-          
+
           // Send the PCM data to the server
           this.ws.send(pcmData.buffer);
         }
@@ -146,11 +199,11 @@ export class HCSWebSocket {
       // Connect the audio nodes
       source.connect(processor);
       processor.connect(audioContext.destination);
-      
+
       this.isRecording = true;
       this.isAudioPaused = false;
       this.notifyStatusChange("recording");
-      console.log("Recording started with correct audio parameters");
+    // console("Recording started with correct audio parameters");
     } catch (error) {
       console.error("Error starting recording:", error);
       this.notifyError("Failed to start recording");
@@ -164,38 +217,38 @@ export class HCSWebSocket {
       this.source.disconnect();
       this.processor.disconnect();
     }
-    
+
     // Stop all tracks in the stream
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
     }
-    
+
     // Close the audio context
     if (this.audioContext && this.audioContext.state !== 'closed') {
       this.audioContext.close();
     }
-    
+
     this.isRecording = false;
     this.notifyStatusChange("paused");
-    console.log("Recording stopped");
+  // console("Recording stopped");
   }
 
   public pauseAudio(): void {
     if (!this.isRecording) return;
-    
+
     // Set flag to stop sending audio data in onaudioprocess
     this.isAudioPaused = true;
     this.notifyStatusChange("muted");
-    console.log("Microphone paused - audio transmission stopped");
+  // console("Microphone paused - audio transmission stopped");
   }
 
   public resumeAudio(): void {
     if (!this.isRecording) return;
-    
+
     // Resume sending audio data
     this.isAudioPaused = false;
     this.notifyStatusChange("recording");
-    console.log("Microphone resumed - audio transmission restarted");
+  // console("Microphone resumed - audio transmission restarted");
   }
 
   public endInterview(): void {
@@ -209,16 +262,16 @@ export class HCSWebSocket {
 
   public disconnect(): void {
     this.stopRecording();
-    
+
     // Close WebSocket connection
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
-    
+
     this.isConfigured = false;
     this.notifyStatusChange("disconnected");
-    console.log("Disconnected, all resources cleaned up");
+  // console("Disconnected, all resources cleaned up");
   }
 
   public get configured(): boolean {
@@ -243,5 +296,9 @@ export class HCSWebSocket {
 
   private notifyError(error: string): void {
     this.onErrorListeners.forEach(listener => listener(error));
+  }
+
+  private notifyLanguagePrompt(options: string[]): void {
+    this.onLanguagePromptListeners.forEach(listener => listener(options));
   }
 }

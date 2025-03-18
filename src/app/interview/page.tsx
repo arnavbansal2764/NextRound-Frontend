@@ -84,7 +84,7 @@ export default function InterviewAssistant() {
         setScores(interviewScores)
         // No need to format history as we'll pass the raw scores to the component
       }
-      console.log("\n These are scores \n", interviewScores)
+      // console.log("\n These are scores \n", interviewScores)
     })
 
     return () => {

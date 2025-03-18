@@ -14,32 +14,48 @@ import {
     CheckCircle,
     Loader2,
     User,
+    X,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
-export default function PCSInterviewAssistant() {
+export default function PCSInterview() {
+    // Setup and configuration states
+    const [isSetupComplete, setIsSetupComplete] = useState<boolean>(false)
+    const [candidateInfo, setCandidateInfo] = useState<string>("")
+    const [selectedLanguage, setSelectedLanguage] = useState<string>("english")
+    const [isLoading, setIsLoading] = useState<boolean>(false)
+
+    // Interview states
     const [isRecording, setIsRecording] = useState<boolean>(false)
     const [isConfigured, setIsConfigured] = useState<boolean>(false)
     const [responses, setResponses] = useState<BilingualResponse[]>([])
-    const [candidateInfo, setCandidateInfo] = useState<string>("")
     const [interviewComplete, setInterviewComplete] = useState<boolean>(false)
     const [connectionStatus, setConnectionStatus] = useState<string>("disconnected")
     const [isMicMuted, setIsMicMuted] = useState<boolean>(false)
     const [preferredLanguage, setPreferredLanguage] = useState<string>("english")
     const [showChat, setShowChat] = useState<boolean>(false)
     const [showParticipants, setShowParticipants] = useState<boolean>(false)
-    const [isLoading, setIsLoading] = useState<boolean>(false)
     const [animateResponse, setAnimateResponse] = useState(false)
+    const [showThankYouModal, setShowThankYouModal] = useState<boolean>(false)
 
+    // Language selection animation states
+    const [showLanguageSelector, setShowLanguageSelector] = useState<boolean>(false)
+    const [languageOptions, setLanguageOptions] = useState<string[]>([])
+    const [languageSelectionProgress, setLanguageSelectionProgress] = useState<number>(0)
+    const [languageSelectionComplete, setLanguageSelectionComplete] = useState<boolean>(false)
+    const [isLanguageSelecting, setIsLanguageSelecting] = useState<boolean>(false)
+
+    // Refs
     const pcsWsRef = useRef<PCSWebSocket | null>(null)
     const responseEndRef = useRef<HTMLDivElement | null>(null)
     const chatEndRef = useRef<HTMLDivElement | null>(null)
     const audioVisualizerRef = useRef<HTMLCanvasElement | null>(null)
     const animationFrameRef = useRef<number | null>(null)
+    const languageSelectionTimerRef = useRef<NodeJS.Timeout | null>(null)
 
     // Initialize PCS WebSocket instance
     useEffect(() => {
-        pcsWsRef.current = new PCSWebSocket("ws://localhost:8207")
+        pcsWsRef.current = new PCSWebSocket("wss://ws5.nextround.tech/pcs")
 
         // Set up event listeners
         pcsWsRef.current.addMessageListener((message) => {
@@ -59,6 +75,7 @@ export default function PCSInterviewAssistant() {
             } else if (status === "complete") {
                 setInterviewComplete(true)
                 setIsRecording(false)
+                setShowThankYouModal(true)
             } else if (status === "disconnected") {
                 setIsConfigured(false)
                 setIsRecording(false)
@@ -76,6 +93,16 @@ export default function PCSInterviewAssistant() {
             setIsLoading(false)
         })
 
+        // Add language prompt listener
+        pcsWsRef.current.addLanguagePromptListener((options) => {
+            setLanguageOptions(options)
+            setShowLanguageSelector(true)
+            setIsLanguageSelecting(true)
+
+            // Start the animated language selection process
+            animateLanguageSelection()
+        })
+
         return () => {
             // Cleanup
             if (pcsWsRef.current) {
@@ -83,6 +110,9 @@ export default function PCSInterviewAssistant() {
             }
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current)
+            }
+            if (languageSelectionTimerRef.current) {
+                clearTimeout(languageSelectionTimerRef.current)
             }
         }
     }, [])
@@ -152,8 +182,10 @@ export default function PCSInterviewAssistant() {
             if (pcsWsRef.current) {
                 await pcsWsRef.current.configure({
                     candidate_info: candidateInfo,
+                    language: selectedLanguage as "english" | "hindi",
                 })
                 // Note: startRecording will be triggered by the "ready" status change
+                setIsSetupComplete(true)
             }
         } catch (error) {
             console.error("Error configuring interview:", error)
@@ -198,27 +230,82 @@ export default function PCSInterviewAssistant() {
     }
 
     const endInterview = () => {
+        // Show the thank you modal first
+        setShowThankYouModal(true)
+    }
+
+    const finalizeInterview = () => {
+        // This function will be called when the user clicks "Close" in the thank you modal
         if (pcsWsRef.current) {
             pcsWsRef.current.endInterview()
         }
+        setShowThankYouModal(false)
+        // Reset the interview state
+        setIsConfigured(false)
+        setIsSetupComplete(false)
+        setResponses([])
+        setInterviewComplete(false)
     }
 
     const clearResponses = () => {
         setResponses([])
     }
 
+    const handleLanguageSelection = (lang: string) => {
+        const normalizedLang = lang.toLowerCase();
+        setSelectedLanguage(normalizedLang);
+        setPreferredLanguage(normalizedLang);
+        
+        // If WebSocket is configured, send the language selection
+        if (pcsWsRef.current && pcsWsRef.current.configured) {
+            try {
+                pcsWsRef.current.selectLanguage(normalizedLang);
+                // console.log(`Language changed to: ${normalizedLang}`);
+            } catch (error) {
+                // console.error("Error changing language:", error);
+            }
+        }
+    };
+
     const toggleLanguage = () => {
-        setPreferredLanguage((prev) => (prev === "english" ? "hindi" : "english"))
-    }
+        const newLanguage = preferredLanguage === "english" ? "hindi" : "english";
+        handleLanguageSelection(newLanguage);
+    };
 
-    const toggleChat = () => {
-        setShowChat(!showChat)
-        setShowParticipants(false)
-    }
+    const animateLanguageSelection = () => {
+        // Simulate the language selection animation
+        setLanguageSelectionProgress(0)
+        setLanguageSelectionComplete(false)
 
-    const toggleParticipants = () => {
-        setShowParticipants(!showParticipants)
-        setShowChat(false)
+        // Animate progress bar to 100% over 2 seconds
+        const startTime = Date.now()
+        const duration = 2000 // 2 seconds
+
+        const updateProgress = () => {
+            const elapsed = Date.now() - startTime
+            const progress = Math.min((elapsed / duration) * 100, 100)
+            setLanguageSelectionProgress(progress)
+
+            if (progress < 100) {
+                requestAnimationFrame(updateProgress)
+            } else {
+                // When animation completes, show checkmark and send language
+                setLanguageSelectionComplete(true)
+
+                // After showing checkmark for a moment, send the language and close modal
+                languageSelectionTimerRef.current = setTimeout(() => {
+                    if (pcsWsRef.current) {
+                        // Make sure we're sending the correct language
+                        // console.log("Sending language:", selectedLanguage)
+                        pcsWsRef.current.selectLanguage(selectedLanguage)
+                    }
+                    setShowLanguageSelector(false)
+                    setIsLanguageSelecting(false)
+                }, 1000)
+            }
+        }
+
+        requestAnimationFrame(updateProgress)
     }
 
     const getStatusColor = () => {
@@ -236,7 +323,27 @@ export default function PCSInterviewAssistant() {
         }
     }
 
-    if (!isConfigured) {
+    const closeThankYouModal = () => {
+        if (pcsWsRef.current) {
+            pcsWsRef.current.endInterview()
+        }
+        setShowThankYouModal(false)
+        // Reset the interview state
+        setIsConfigured(false)
+        setIsSetupComplete(false)
+        setResponses([])
+        setInterviewComplete(false)
+    }
+
+    const toggleChat = () => {
+        setShowChat(!showChat)
+    }
+
+    const toggleParticipants = () => {
+        setShowParticipants(!showParticipants)
+    }
+
+    if (!isSetupComplete) {
         return (
             <motion.div
                 initial={{ opacity: 0 }}
@@ -337,11 +444,47 @@ export default function PCSInterviewAssistant() {
                             </div>
                         </motion.div>
 
-                        {/* Candidate Information section */}
+                        {/* Language Selection */}
                         <motion.div
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.6 }}
+                            className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
+                        >
+                            <h3 className="text-xl font-bold mb-4 text-center text-blue-300">Interview Language</h3>
+                            <p className="text-gray-300 mb-4 text-center">Select your preferred language for the interview:</p>
+                            <div className="flex justify-center space-x-4 mb-2">
+                                <button
+                                    onClick={() => handleLanguageSelection("english")}
+                                    className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                                        selectedLanguage === "english"
+                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                                            : "bg-gray-700/50 text-gray-300 hover:bg-gray-700"
+                                    }`}
+                                >
+                                    English
+                                </button>
+                                <button
+                                    onClick={() => handleLanguageSelection("hindi")}
+                                    className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                                        selectedLanguage === "hindi"
+                                            ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                                            : "bg-gray-700/50 text-gray-300 hover:bg-gray-700"
+                                    }`}
+                                >
+                                    हिंदी (Hindi)
+                                </button>
+                            </div>
+                            <p className="text-sm text-gray-400 text-center">
+                                You can change the language during the interview as well.
+                            </p>
+                        </motion.div>
+
+                        {/* Candidate Information section */}
+                        <motion.div
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.7 }}
                             className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
                         >
                             <h3 className="text-xl font-bold mb-4 text-center text-blue-300">Your Information</h3>
@@ -375,7 +518,7 @@ export default function PCSInterviewAssistant() {
                         <motion.div
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.7 }}
+                            transition={{ delay: 0.8 }}
                             className="bg-blue-500/10 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-blue-500/20 mb-6"
                         >
                             <h3 className="text-lg font-bold mb-2 text-blue-300 flex items-center">
@@ -414,7 +557,7 @@ export default function PCSInterviewAssistant() {
                         <motion.div
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.8 }}
+                            transition={{ delay: 0.9 }}
                             className="flex justify-center"
                         >
                             <motion.button
@@ -638,13 +781,7 @@ export default function PCSInterviewAssistant() {
                                     whileTap={{ scale: 0.9 }}
                                     className="text-gray-400 hover:text-white transition-colors"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path
-                                            fillRule="evenodd"
-                                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414 1 0 01-1.414-1.414z"
-                                            clipRule="evenodd"
-                                        />
-                                    </svg>
+                                    <X className="h-5 w-5" />
                                 </motion.button>
                             </div>
 
@@ -737,9 +874,73 @@ export default function PCSInterviewAssistant() {
                 </div>
             </div>
 
-            {/* Interview complete modal */}
+            {/* Language selection modal */}
             <AnimatePresence>
-                {interviewComplete && (
+                {showLanguageSelector && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            className="bg-gray-800/90 backdrop-blur-md rounded-2xl p-6 max-w-md w-full border border-gray-700/50 shadow-2xl"
+                        >
+                            <div className="text-center mb-6">
+                                <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Globe className="h-8 w-8 text-blue-400" />
+                                </div>
+                                <h2 className="text-2xl font-bold text-center mb-2 text-white">Language Selection</h2>
+                                <p className="text-gray-300">
+                                    {languageOptions.length > 0 &&
+                                        `Would you like to conduct this interview in ${languageOptions.join(" or ")}?`}
+                                </p>
+                            </div>
+
+                            <div className="flex justify-center space-x-4 mb-6">
+                                {languageOptions.map((lang, index) => (
+                                    <motion.div
+                                        key={index}
+                                        className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${selectedLanguage.toLowerCase() === lang.toLowerCase()
+                                                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                                                : "bg-gray-700/50 text-gray-300"
+                                            }`}
+                                    >
+                                        {lang}
+                                        {selectedLanguage.toLowerCase() === lang.toLowerCase() && languageSelectionComplete && (
+                                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex justify-center mt-2">
+                                                <CheckCircle className="h-5 w-5 text-green-400" />
+                                            </motion.div>
+                                        )}
+                                    </motion.div>
+                                ))}
+                            </div>
+
+                            <div className="w-full bg-gray-700/50 h-2 rounded-full overflow-hidden">
+                                <motion.div
+                                    initial={{ width: "0%" }}
+                                    animate={{ width: `${languageSelectionProgress}%` }}
+                                    className="h-full bg-blue-500"
+                                />
+                            </div>
+
+                            <p className="text-center text-sm text-gray-400 mt-4">
+                                {languageSelectionComplete
+                                    ? "Language selected! Continuing with interview..."
+                                    : "Selecting language..."}
+                            </p>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Thank you modal */}
+            <AnimatePresence>
+                {showThankYouModal && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -757,7 +958,7 @@ export default function PCSInterviewAssistant() {
                                 <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <CheckCircle className="h-8 w-8 text-green-400" />
                                 </div>
-                                <h2 className="text-2xl font-bold text-center mb-4 text-white">Interview Complete</h2>ew Complete
+                                <h2 className="text-2xl font-bold text-center mb-4 text-white">Interview Complete</h2>
                             </div>
                             <p className="text-gray-300 text-center mb-6">
                                 Thank you for participating in the PCS interview. Your responses have been recorded.
@@ -767,11 +968,7 @@ export default function PCSInterviewAssistant() {
                                     whileHover={{ scale: 1.03 }}
                                     whileTap={{ scale: 0.97 }}
                                     className="w-full py-3 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium shadow-lg shadow-blue-500/30"
-                                    onClick={() => {
-                                        setInterviewComplete(false)
-                                        clearResponses()
-                                        setIsConfigured(false)
-                                    }}
+                                    onClick={closeThankYouModal}
                                 >
                                     Start New Interview
                                 </motion.button>
@@ -779,7 +976,7 @@ export default function PCSInterviewAssistant() {
                                     whileHover={{ scale: 1.03 }}
                                     whileTap={{ scale: 0.97 }}
                                     className="w-full py-3 rounded-lg bg-gray-700 text-white font-medium"
-                                    onClick={() => setInterviewComplete(false)}
+                                    onClick={finalizeInterview}
                                 >
                                     Close
                                 </motion.button>

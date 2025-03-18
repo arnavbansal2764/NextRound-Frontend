@@ -77,7 +77,7 @@ export class GroupDiscussionWebSocket {
         this.userName = config.user_name;
         
         this.ws.onopen = () => {
-          console.log("WebSocket connected, sending configuration");
+        // console("WebSocket connected, sending configuration");
           if (this.ws) {
             this.ws.send(JSON.stringify(config));
           }
@@ -93,7 +93,7 @@ export class GroupDiscussionWebSocket {
           if (typeof event.data === "string") {
             try {
               const jsonData = JSON.parse(event.data) as DiscussionResponse;
-              console.log("Received message:", jsonData);
+            // console("Received message:", jsonData);
               
               // Handle different status types
               switch(jsonData.status) {
@@ -164,7 +164,7 @@ export class GroupDiscussionWebSocket {
         this.ws.onclose = () => {
           this.isConfigured = false;
           this.notifyStatusChange("disconnected");
-          console.log("WebSocket connection closed");
+        // console("WebSocket connection closed");
         };
         
       } catch (error) {
@@ -221,7 +221,7 @@ export class GroupDiscussionWebSocket {
       
       this.isRecording = true;
       this.notifyStatusChange("recording");
-      console.log("Recording started with correct audio parameters");
+    // console("Recording started with correct audio parameters");
     } catch (error) {
       console.error("Error starting recording:", error);
       this.notifyError("Failed to start recording");
@@ -245,21 +245,21 @@ export class GroupDiscussionWebSocket {
     }
     this.isRecording = false;
     this.notifyStatusChange("paused");
-    console.log("Recording stopped");
+  // console("Recording stopped");
   }
 
   public pauseAudio(): void {
     if (!this.isRecording) return;
     this.isAudioPaused = true;
     this.notifyStatusChange("muted");
-    console.log("Microphone muted - audio transmission paused");
+  // console("Microphone muted - audio transmission paused");
   }
 
   public resumeAudio(): void {
     if (!this.isRecording) return;
     this.isAudioPaused = false;
     this.notifyStatusChange("recording");
-    console.log("Microphone unmuted - audio transmission resumed");
+  // console("Microphone unmuted - audio transmission resumed");
   }
 
   public requestAnalysis(): void {
@@ -280,7 +280,7 @@ export class GroupDiscussionWebSocket {
     }
     this.isConfigured = false;
     this.notifyStatusChange("disconnected");
-    console.log("Disconnected from group discussion, all resources cleaned up");
+  // console("Disconnected from group discussion, all resources cleaned up");
   }
 
   public get configured(): boolean {

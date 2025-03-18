@@ -1,10 +1,12 @@
 export interface PolityConfig {
   difficulty?: "easy" | "medium" | "hard";
+  language?: "english" | "hindi";
 }
 
 export interface PolityResponse {
   status?: string;
   message?: string;
+  language?: string;
 }
 
 export type PolityEventListener = (message: string) => void;
@@ -21,6 +23,8 @@ export class PolityWebSocket {
   private onMessageListeners: PolityEventListener[] = [];
   private onStatusChangeListeners: ((status: string) => void)[] = [];
   private onErrorListeners: ((error: string) => void)[] = [];
+  private onLanguagePromptListeners: ((options: string[]) => void)[] = [];
+  private selectedLanguage: string = "english";
 
   constructor(private serverUrl: string = "ws://localhost:8767") {}
 
@@ -35,15 +39,24 @@ export class PolityWebSocket {
   public addErrorListener(listener: (error: string) => void): void {
     this.onErrorListeners.push(listener);
   }
+  
+  public addLanguagePromptListener(listener: (options: string[]) => void): void {
+    this.onLanguagePromptListeners.push(listener);
+  }
 
   public configure(config: PolityConfig = {}): Promise<void> {
+    // Store language preference if provided in config
+    if (config.language) {
+      this.selectedLanguage = config.language;
+    }
+    
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(this.serverUrl);
         this.ws.binaryType = "arraybuffer";
         
         this.ws.onopen = () => {
-          console.log("WebSocket connected, sending Polity configuration");
+        // console("WebSocket connected, sending Polity configuration");
           if (this.ws) {
             this.ws.send(JSON.stringify(config));
           }
@@ -60,7 +73,21 @@ export class PolityWebSocket {
             try {
               // Try to parse as JSON for status messages
               const jsonData = JSON.parse(event.data);
-              if (jsonData.status === "ready") {
+              
+              // Handle language selection prompt
+              if (jsonData.status === "language_selection") {
+              // console("Language selection prompt received:", jsonData);
+                if (jsonData.options && Array.isArray(jsonData.options)) {
+                  this.notifyLanguagePrompt(jsonData.options);
+                }
+                this.notifyMessage(jsonData.message || "Please select a language");
+                // Don't resolve the promise yet, wait for language selection
+              }
+              else if (jsonData.status === "ready") {
+                // Store language if provided
+                if (jsonData.language) {
+                  this.selectedLanguage = jsonData.language;
+                }
                 this.isConfigured = true;
                 this.notifyStatusChange("ready");
                 resolve();
@@ -71,6 +98,19 @@ export class PolityWebSocket {
                 this.isConfigured = false;
                 this.notifyStatusChange("complete");
                 this.notifyMessage(`✨ ${jsonData.message}`);
+                
+                // Update language preference if specified in response
+                if (jsonData.language) {
+                  this.selectedLanguage = jsonData.language;
+                }
+              } else if (jsonData.english && jsonData.hindi) {
+                // Handle responses with multiple language options
+                const message = this.selectedLanguage === "hindi" ? 
+                  jsonData.hindi : jsonData.english;
+                this.notifyMessage(message);
+              } else if (jsonData.preferred) {
+                // Handle responses with a preferred language field
+                this.notifyMessage(jsonData.preferred);
               }
             } catch (e) {
               // If not JSON, treat as regular interviewer response
@@ -82,7 +122,7 @@ export class PolityWebSocket {
         this.ws.onclose = () => {
           this.isConfigured = false;
           this.notifyStatusChange("disconnected");
-          console.log("WebSocket connection closed");
+        // console("WebSocket connection closed");
         };
         
       } catch (error) {
@@ -91,6 +131,24 @@ export class PolityWebSocket {
         reject(error);
       }
     });
+  }
+
+  // Send language preference to the server
+  public selectLanguage(language: string): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.selectedLanguage = language.toLowerCase();
+      this.ws.send(JSON.stringify({
+        type: "LANGUAGE_SELECTION",
+        language: this.selectedLanguage
+      }));
+    // console(`Language preference sent: ${this.selectedLanguage}`);
+    } else {
+      console.error("Cannot send language preference: connection not open");
+    }
+  }
+  
+  public getSelectedLanguage(): string {
+    return this.selectedLanguage;
   }
 
   public async startRecording(): Promise<void> {
@@ -141,7 +199,7 @@ export class PolityWebSocket {
       
       this.isRecording = true;
       this.notifyStatusChange("recording");
-      console.log("Polity recording started with correct audio parameters");
+    // console("Polity recording started with correct audio parameters");
     } catch (error) {
       console.error("Error starting Polity recording:", error);
       this.notifyError("Failed to start recording");
@@ -168,7 +226,7 @@ export class PolityWebSocket {
     
     this.isRecording = false;
     this.notifyStatusChange("paused");
-    console.log("Polity recording stopped");
+  // console("Polity recording stopped");
   }
 
   public pauseAudio(): void {
@@ -176,7 +234,7 @@ export class PolityWebSocket {
     
     this.isAudioPaused = true;
     this.notifyStatusChange("muted");
-    console.log("Polity microphone paused - audio transmission stopped");
+  // console("Polity microphone paused - audio transmission stopped");
   }
 
   public resumeAudio(): void {
@@ -184,7 +242,7 @@ export class PolityWebSocket {
     
     this.isAudioPaused = false;
     this.notifyStatusChange("recording");
-    console.log("Polity microphone resumed - audio transmission restarted");
+  // console("Polity microphone resumed - audio transmission restarted");
   }
 
   public endInterview(): void {
@@ -215,7 +273,7 @@ export class PolityWebSocket {
     
     this.isConfigured = false;
     this.notifyStatusChange("disconnected");
-    console.log("Disconnected from Polity interview, all resources cleaned up");
+  // console("Disconnected from Polity interview, all resources cleaned up");
   }
 
   public get configured(): boolean {
@@ -240,5 +298,9 @@ export class PolityWebSocket {
 
   private notifyError(error: string): void {
     this.onErrorListeners.forEach(listener => listener(error));
+  }
+  
+  private notifyLanguagePrompt(options: string[]): void {
+    this.onLanguagePromptListeners.forEach(listener => listener(options));
   }
 }

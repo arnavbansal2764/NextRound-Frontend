@@ -20,6 +20,7 @@ import {
   User,
   CheckCircle,
   Loader2,
+  Globe,
 } from "lucide-react"
 
 const difficultyLevels = [
@@ -36,16 +37,23 @@ export default function EconomicsInterview() {
     interviewComplete: false,
     connectionStatus: "disconnected" as "disconnected" | "connected" | "ready" | "complete",
     isLoading: false,
+    showThankYouModal: false,
   })
 
   const [uiState, setUiState] = useState({
     showChat: false,
     showParticipants: false,
     animateResponse: false,
+    setupStep: 1, // Add this to track the setup step
   })
 
   const [responses, setResponses] = useState<string[]>([])
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium")
+  const [language, setLanguage] = useState<string>("english")
+  const [showLanguagePrompt, setShowLanguagePrompt] = useState<boolean>(false)
+  const [languageOptions, setLanguageOptions] = useState<string[]>(["English", "Hindi"])
+  const [showLanguageAnimation, setShowLanguageAnimation] = useState<boolean>(false)
+  const [animatingLanguage, setAnimatingLanguage] = useState<string>("english")
 
   const ecoWsRef = useRef<EcoWebSocket | null>(null)
   const responseEndRef = useRef<HTMLDivElement | null>(null)
@@ -81,6 +89,7 @@ export default function EconomicsInterview() {
             ...prev,
             interviewComplete: true,
             isRecording: false,
+            showThankYouModal: true,
           }))
           break
         case "disconnected":
@@ -88,6 +97,7 @@ export default function EconomicsInterview() {
             ...prev,
             isConfigured: false,
             isRecording: false,
+            isLoading: false,
           }))
           break
       }
@@ -100,13 +110,48 @@ export default function EconomicsInterview() {
       setInterviewState((prev) => ({ ...prev, isLoading: false }))
     })
 
+    // Add language prompt listener
+    ws.addLanguagePromptListener((options) => {
+    // console("Language selection prompt received with options:", options)
+      setLanguageOptions(options)
+
+      // Show the language animation
+      setShowLanguageAnimation(true)
+
+      // Set the animating language to the current language
+      setAnimatingLanguage(language)
+
+      // After a short delay to show the animation, send the language
+      setTimeout(() => {
+        if (ecoWsRef.current) {
+        // console(`Automatically sending language selection: ${language}`)
+          try {
+            ecoWsRef.current.selectLanguage(language)
+            // Add a confirmation message to the responses
+            setResponses((prev) => [
+              ...prev,
+              `Selected language: ${language.charAt(0).toUpperCase() + language.slice(1)}`,
+            ])
+          } catch (error) {
+            console.error("Error sending language selection:", error)
+            setResponses((prev) => [...prev, `Error selecting language: ${error}`])
+          }
+
+          // Hide the animation after sending
+          setTimeout(() => {
+            setShowLanguageAnimation(false)
+          }, 1500)
+        }
+      }, 2000) // Show animation for 2 seconds before sending
+    })
+
     return () => {
       ws.disconnect()
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
       }
     }
-  }, [])
+  }, [language])
 
   // Audio visualizer effect
   useEffect(() => {
@@ -177,6 +222,33 @@ export default function EconomicsInterview() {
     }
   }
 
+  // Update the selectLanguage function to log more details and ensure the message is sent
+  const selectLanguage = (selectedLanguage: string) => {
+    const normalizedLanguage = selectedLanguage.toLowerCase()
+    setLanguage(normalizedLanguage)
+    setShowLanguagePrompt(false)
+
+    if (ecoWsRef.current) {
+    // console(`Sending language selection: ${normalizedLanguage}`)
+      try {
+        ecoWsRef.current.selectLanguage(normalizedLanguage)
+        // Add a confirmation message to the responses
+        setResponses((prev) => [...prev, `Selected language: ${selectedLanguage}`])
+      } catch (error) {
+        console.error("Error sending language selection:", error)
+        setResponses((prev) => [...prev, `Error selecting language: ${error}`])
+      }
+    } else {
+      console.error("WebSocket reference is not available")
+      setResponses((prev) => [...prev, "Error: Cannot select language, connection not available"])
+    }
+  }
+
+  // Function to handle language selection in setup
+  const handleSetupLanguageChange = (selectedLanguage: string) => {
+    setLanguage(selectedLanguage.toLowerCase())
+  }
+
   const startRecording = async () => {
     try {
       if (!ecoWsRef.current) return
@@ -219,17 +291,24 @@ export default function EconomicsInterview() {
       interviewComplete: false,
       connectionStatus: "disconnected",
       isLoading: false,
+      showThankYouModal: false,
     })
     setUiState({
       showChat: false,
       showParticipants: false,
       animateResponse: false,
+      setupStep: 1,
     })
     setResponses([])
+    setShowLanguageAnimation(false)
     if (ecoWsRef.current) {
       ecoWsRef.current.disconnect()
       ecoWsRef.current = new EcoWebSocket("wss://ws3.nextround.tech/upsc-economics")
     }
+  }
+
+  const showEndInterviewModal = () => {
+    setInterviewState((prev) => ({ ...prev, showThankYouModal: true }))
   }
 
   const endInterview = () => {
@@ -257,7 +336,13 @@ export default function EconomicsInterview() {
     }))
 
   const handleModalAction = (action: "close" | "new") => {
+    if (action === "close") {
+      // End the interview when the user clicks "Close"
+      endInterview()
+    }
+
     resetInterview()
+
     if (action === "new") {
       // Additional logic for starting a new interview if needed
       configureAndStartInterview()
@@ -297,78 +382,171 @@ export default function EconomicsInterview() {
               Economics Interview Practice
             </h2>
 
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
-            >
-              <h3 className="text-xl font-bold mb-4 text-center text-blue-300">What to expect:</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
-                  <BarChart className="h-8 w-8 text-green-400 mb-2 mx-auto" />
-                  <p className="text-center text-sm">Microeconomics and macroeconomics concepts</p>
-                </div>
-                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
-                  <TrendingUp className="h-8 w-8 text-emerald-400 mb-2 mx-auto" />
-                  <p className="text-center text-sm">Indian economic policies and development</p>
-                </div>
-                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
-                  <LineChart className="h-8 w-8 text-teal-400 mb-2 mx-auto" />
-                  <p className="text-center text-sm">International economics and trade relations</p>
-                </div>
-              </div>
-            </motion.div>
+            {uiState.setupStep === 1 ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
+                >
+                  <h3 className="text-xl font-bold mb-4 text-center text-blue-300">
+                    Benefits of Economics Interview Practice
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
+                      <BarChart className="h-8 w-8 text-green-400 mb-2 mx-auto" />
+                      <p className="text-center text-sm">Master economic theories and concepts through practice</p>
+                    </div>
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
+                      <TrendingUp className="h-8 w-8 text-emerald-400 mb-2 mx-auto" />
+                      <p className="text-center text-sm">
+                        Practice in English or Hindi to improve language proficiency
+                      </p>
+                    </div>
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
+                      <LineChart className="h-8 w-8 text-teal-400 mb-2 mx-auto" />
+                      <p className="text-center text-sm">
+                        Adjustable difficulty levels to match your preparation stage
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
 
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
-            >
-              <h3 className="text-xl font-bold mb-4 text-center text-blue-300">Difficulty Level</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {difficultyLevels.map((levelItem) => (
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
+                >
+                  <h3 className="text-xl font-bold mb-4 text-center text-blue-300">What to expect:</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
+                      <BarChart className="h-8 w-8 text-green-400 mb-2 mx-auto" />
+                      <p className="text-center text-sm">Microeconomics and macroeconomics concepts</p>
+                    </div>
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
+                      <TrendingUp className="h-8 w-8 text-emerald-400 mb-2 mx-auto" />
+                      <p className="text-center text-sm">Indian economic policies and development</p>
+                    </div>
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
+                      <LineChart className="h-8 w-8 text-teal-400 mb-2 mx-auto" />
+                      <p className="text-center text-sm">International economics and trade relations</p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.6 }}
+                  className="flex justify-center"
+                >
                   <motion.button
-                    key={levelItem.text}
-                    onClick={() => setDifficulty(levelItem.text.toLowerCase() as "easy" | "medium" | "hard")}
+                    onClick={() => setUiState((prev) => ({ ...prev, setupStep: 2 }))}
+                    whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(16, 185, 129, 0.5)" }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-8 py-4 rounded-full font-bold text-white bg-gradient-to-r from-blue-500 to-emerald-600 hover:from-blue-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/30 transition-all duration-300"
+                  >
+                    Continue to Setup
+                  </motion.button>
+                </motion.div>
+              </motion.div>
+            ) : (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
+                >
+                  <h2 className="text-xl font-bold mb-4 text-center text-blue-300">Interview Setup</h2>
+                  <p className="text-center text-gray-300 mb-4">
+                    Configure your Economics interview settings below. After configuration, you'll be prompted to select
+                    your preferred language.
+                  </p>
+                </motion.div>
+
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
+                >
+                  <h3 className="text-xl font-bold mb-4 text-center text-blue-300">Difficulty Level</h3>
+                  <div className="grid grid-cols-3 gap-3 mb-6">
+                    {difficultyLevels.map((levelItem) => (
+                      <motion.button
+                        key={levelItem.text}
+                        onClick={() => setDifficulty(levelItem.text.toLowerCase() as "easy" | "medium" | "hard")}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={`p-3 rounded-lg flex flex-col items-center justify-center transition-all duration-200 ${
+                          levelItem.text.toLowerCase() === difficulty
+                            ? "bg-emerald-500/30 border-2 border-emerald-500 text-white"
+                            : "bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700"
+                        }`}
+                      >
+                        <levelItem.icon className="h-6 w-6 mb-1" />
+                        <span className="text-xs font-medium">{levelItem.text}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+
+                  <h2 className="text-xl font-bold mb-4 text-center text-blue-300">Preferred Language</h2>
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    {["English", "Hindi"].map((langOption) => (
+                      <motion.button
+                        key={langOption}
+                        onClick={() => handleSetupLanguageChange(langOption)}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={`p-3 rounded-lg flex flex-col items-center justify-center transition-all duration-200 ${
+                          langOption.toLowerCase() === language
+                            ? "bg-emerald-500/30 border-2 border-emerald-500 text-white"
+                            : "bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700"
+                        }`}
+                      >
+                        <Globe className="h-6 w-6 mb-1" />
+                        <span className="text-xs font-medium">{langOption}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.6 }}
+                  className="flex justify-between"
+                >
+                  <motion.button
+                    onClick={() => setUiState((prev) => ({ ...prev, setupStep: 1 }))}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className={`p-3 rounded-lg flex flex-col items-center justify-center transition-all duration-200 ${levelItem.text.toLowerCase() === difficulty
-                      ? "bg-emerald-500/30 border-2 border-emerald-500 text-white"
-                      : "bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700"
-                      }`}
+                    className="px-6 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-medium transition-all duration-300"
                   >
-                    <levelItem.icon className="h-6 w-6 mb-1" />
-                    <span className="text-xs font-medium">{levelItem.text}</span>
+                    Back
                   </motion.button>
-                ))}
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              className="flex justify-center"
-            >
-              <motion.button
-                onClick={configureAndStartInterview}
-                whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(16, 185, 129, 0.5)" }}
-                whileTap={{ scale: 0.95 }}
-                disabled={interviewState.isLoading}
-                className="px-8 py-4 rounded-full font-bold text-white bg-gradient-to-r from-blue-500 to-emerald-600 hover:from-blue-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/30 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {interviewState.isLoading ? (
-                  <div className="flex items-center">
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Preparing Interview...
-                  </div>
-                ) : (
-                  "Start Economics Interview"
-                )}
-              </motion.button>
-            </motion.div>
+                  <motion.button
+                    onClick={configureAndStartInterview}
+                    whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(16, 185, 129, 0.5)" }}
+                    whileTap={{ scale: 0.95 }}
+                    disabled={interviewState.isLoading}
+                    className="px-8 py-4 rounded-full font-bold text-white bg-gradient-to-r from-blue-500 to-emerald-600 hover:from-blue-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/30 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {interviewState.isLoading ? (
+                      <div className="flex items-center">
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Preparing Interview...
+                      </div>
+                    ) : (
+                      "Start Economics Interview"
+                    )}
+                  </motion.button>
+                </motion.div>
+              </motion.div>
+            )}
           </motion.div>
         </main>
       </motion.div>
@@ -465,9 +643,9 @@ export default function EconomicsInterview() {
               animate={
                 uiState.animateResponse
                   ? {
-                    scale: [1, 1.02, 1],
-                    borderColor: ["rgba(16, 185, 129, 0.5)", "rgba(16, 185, 129, 0.8)", "rgba(16, 185, 129, 0.5)"],
-                  }
+                      scale: [1, 1.02, 1],
+                      borderColor: ["rgba(16, 185, 129, 0.5)", "rgba(16, 185, 129, 0.8)", "rgba(16, 185, 129, 0.5)"],
+                    }
                   : {}
               }
               transition={{ duration: 0.5 }}
@@ -494,10 +672,11 @@ export default function EconomicsInterview() {
               onClick={toggleMicrophone}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${interviewState.isMicMuted
-                ? "bg-red-500 hover:bg-red-600 shadow-red-500/30"
-                : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
-                }`}
+              className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${
+                interviewState.isMicMuted
+                  ? "bg-red-500 hover:bg-red-600 shadow-red-500/30"
+                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
+              }`}
               disabled={!interviewState.isRecording || interviewState.interviewComplete}
             >
               {interviewState.isMicMuted ? (
@@ -511,10 +690,11 @@ export default function EconomicsInterview() {
               onClick={toggleRecording}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${interviewState.isRecording
-                ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30"
-                : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
-                }`}
+              className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${
+                interviewState.isRecording
+                  ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30"
+                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
+              }`}
               disabled={interviewState.interviewComplete}
             >
               {interviewState.isRecording ? (
@@ -528,10 +708,11 @@ export default function EconomicsInterview() {
               onClick={toggleChat}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${uiState.showChat
-                ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30"
-                : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
-                }`}
+              className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${
+                uiState.showChat
+                  ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30"
+                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
+              }`}
             >
               <MessageSquare className="w-5 h-5 md:w-6 md:h-6" />
             </motion.button>
@@ -540,10 +721,11 @@ export default function EconomicsInterview() {
               onClick={toggleParticipants}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${uiState.showParticipants
-                ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30"
-                : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
-                }`}
+              className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${
+                uiState.showParticipants
+                  ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30"
+                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
+              }`}
             >
               <Users className="w-5 h-5 md:w-6 md:h-6" />
             </motion.button>
@@ -558,7 +740,7 @@ export default function EconomicsInterview() {
             </motion.button>
 
             <motion.button
-              onClick={endInterview}
+              onClick={showEndInterviewModal}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className="p-3 md:p-4 rounded-full bg-red-500 hover:bg-red-600 transition-all duration-300 shadow-lg shadow-red-500/30"
@@ -606,9 +788,7 @@ export default function EconomicsInterview() {
                       // Filter to only show responses at even indices (interviewer responses)
                       .filter((_, index) => index % 2 === 0)
                       // Filter out duplicate responses
-                      .filter((response, index, self) =>
-                        self.findIndex(r => r === response) === index
-                      )
+                      .filter((response, index, self) => self.findIndex((r) => r === response) === index)
                       .map((response, index) => (
                         <motion.div
                           key={index}
@@ -617,9 +797,7 @@ export default function EconomicsInterview() {
                           transition={{ delay: index * 0.05 }}
                           className="rounded-xl p-3 bg-blue-500/20 border border-blue-500/30"
                         >
-                          <p className="text-sm font-medium mb-1 text-blue-300">
-                            Interviewer
-                          </p>
+                          <p className="text-sm font-medium mb-1 text-blue-300">Interviewer</p>
                           <p className="text-gray-200 text-sm">{response}</p>
                         </motion.div>
                       ))}
@@ -670,7 +848,7 @@ export default function EconomicsInterview() {
 
       {/* Interview complete modal */}
       <AnimatePresence>
-        {interviewState.interviewComplete && (
+        {interviewState.showThankYouModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -722,6 +900,71 @@ export default function EconomicsInterview() {
                   Start New Interview
                 </motion.button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Language selection animation */}
+      <AnimatePresence>
+        {showLanguageAnimation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="bg-gray-800/90 backdrop-blur-md rounded-2xl p-6 max-w-lg w-full border border-gray-700/50 shadow-2xl"
+            >
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Globe className="h-8 w-8 text-emerald-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-center mb-4 text-white">Language Selection</h2>
+                <p className="text-gray-300 text-center mb-6">
+                  Would you like to conduct this interview in English or Hindi?
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                {languageOptions.map((option) => (
+                  <motion.div
+                    key={option}
+                    className={`p-4 rounded-lg flex flex-col items-center justify-center transition-all duration-200 ${
+                      option.toLowerCase() === animatingLanguage
+                        ? "bg-emerald-500/30 border-2 border-emerald-500 text-white scale-110"
+                        : "bg-gray-700/50 border border-gray-600 text-gray-400"
+                    }`}
+                  >
+                    <Globe
+                      className={`h-8 w-8 mb-2 ${option.toLowerCase() === animatingLanguage ? "text-emerald-400" : "text-gray-500"}`}
+                    />
+                    <span className="font-medium">{option}</span>
+                    {option.toLowerCase() === animatingLanguage && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="mt-2 bg-emerald-500 rounded-full p-1"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                      </motion.div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+
+              <motion.div
+                initial={{ width: "0%" }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 2 }}
+                className="h-1 bg-emerald-500 rounded-full"
+              />
             </motion.div>
           </motion.div>
         )}

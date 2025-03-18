@@ -1,5 +1,6 @@
 export interface PCSConfig {
     candidate_info: string;
+    language?: "english" | "hindi";
 }
 
 export interface BilingualResponse {
@@ -18,11 +19,13 @@ export class PCSWebSocket {
     private isRecording = false;
     private isConfigured = false;
     private isAudioPaused = false;
+    private selectedLanguage: string = "english";
     private onMessageListeners: PCSEventListener[] = [];
     private onStatusChangeListeners: ((status: string) => void)[] = [];
     private onErrorListeners: ((error: string) => void)[] = [];
+    private onLanguagePromptListeners: ((options: string[]) => void)[] = [];
 
-    constructor(private serverUrl: string = "wss://ws3.nextround.tech/pcs") { }
+    constructor(private serverUrl: string = "wss://ws5.nextround.tech/pcs") { }
 
     public addMessageListener(listener: PCSEventListener): void {
         this.onMessageListeners.push(listener);
@@ -36,14 +39,23 @@ export class PCSWebSocket {
         this.onErrorListeners.push(listener);
     }
 
+    public addLanguagePromptListener(listener: (options: string[]) => void): void {
+        this.onLanguagePromptListeners.push(listener);
+    }
+
     public configure(config: PCSConfig): Promise<void> {
+        // Store language preference if provided in config
+        if (config.language) {
+            this.selectedLanguage = config.language;
+        }
+
         return new Promise((resolve, reject) => {
             try {
                 this.ws = new WebSocket(this.serverUrl);
                 this.ws.binaryType = "arraybuffer";
 
                 this.ws.onopen = () => {
-                    console.log("WebSocket connected, sending configuration");
+                  // console("WebSocket connected, sending configuration");
                     if (this.ws) {
                         this.ws.send(JSON.stringify(config));
                     }
@@ -61,7 +73,25 @@ export class PCSWebSocket {
                             // Handle JSON messages
                             const jsonData = JSON.parse(event.data);
 
-                            if (jsonData.status === "ready") {
+                            // Handle language selection prompt
+                            if (jsonData.status === "language_selection") {
+                              // console("Language selection prompt received:", jsonData);
+                                if (jsonData.options && Array.isArray(jsonData.options)) {
+                                    this.notifyLanguagePrompt(jsonData.options);
+                                }
+                                this.notifyMessage({
+                                    english: jsonData.message,
+                                    hindi: jsonData.message
+                                });
+                                // Don't resolve the promise yet, wait for language selection
+                            }
+                            else if (jsonData.status === "ready") {
+                                // Store language if provided
+                                if (jsonData.language) {
+                                    this.selectedLanguage = jsonData.language;
+                                  // console(`Language set to: ${this.selectedLanguage}`);
+                                }
+
                                 this.isConfigured = true;
                                 this.notifyStatusChange("ready");
                                 resolve();
@@ -72,6 +102,11 @@ export class PCSWebSocket {
                                 this.isConfigured = false;
                                 this.notifyStatusChange("complete");
                                 this.notifyError(`✨ ${jsonData.message}`);
+
+                                // If language is provided in the goodbye message, update it
+                                if (jsonData.language) {
+                                    this.selectedLanguage = jsonData.language;
+                                }
                             } else if (jsonData.english || jsonData.hindi) {
                                 // Handle bilingual response
                                 this.notifyMessage({
@@ -90,7 +125,7 @@ export class PCSWebSocket {
                 this.ws.onclose = () => {
                     this.isConfigured = false;
                     this.notifyStatusChange("disconnected");
-                    console.log("WebSocket connection closed");
+                  // console("WebSocket connection closed");
                 };
 
             } catch (error) {
@@ -99,6 +134,38 @@ export class PCSWebSocket {
                 reject(error);
             }
         });
+    }
+
+    // Send language preference to the server
+    public selectLanguage(language: string): void {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.error("WebSocket is not connected");
+            this.notifyError("Connection not available for language selection");
+            return;
+        }
+
+        try {
+            const normalizedLang = language.toLowerCase();
+            this.selectedLanguage = normalizedLang;
+            
+            const message = {
+                type: "LANGUAGE_SELECTION",
+                language: normalizedLang
+            };
+            
+          // console("Sending language selection:", message);
+            this.ws.send(JSON.stringify(message));
+            
+            // Notify status change
+            this.notifyStatusChange("language_changed");
+        } catch (error) {
+            console.error("Error in selectLanguage:", error);
+            this.notifyError(`Failed to change language: ${error}`);
+        }
+    }
+
+    public getSelectedLanguage(): string {
+        return this.selectedLanguage;
     }
 
     public async startRecording(): Promise<void> {
@@ -150,7 +217,7 @@ export class PCSWebSocket {
             this.isRecording = true;
             this.isAudioPaused = false;
             this.notifyStatusChange("recording");
-            console.log("Recording started with correct audio parameters");
+          // console("Recording started with correct audio parameters");
         } catch (error) {
             console.error("Error starting recording:", error);
             this.notifyError("Failed to start recording");
@@ -177,7 +244,7 @@ export class PCSWebSocket {
 
         this.isRecording = false;
         this.notifyStatusChange("paused");
-        console.log("Recording stopped");
+      // console("Recording stopped");
     }
 
     public pauseAudio(): void {
@@ -186,7 +253,7 @@ export class PCSWebSocket {
         // Set flag to stop sending audio data in onaudioprocess
         this.isAudioPaused = true;
         this.notifyStatusChange("muted");
-        console.log("Microphone paused - audio transmission stopped");
+      // console("Microphone paused - audio transmission stopped");
     }
 
     public resumeAudio(): void {
@@ -195,7 +262,7 @@ export class PCSWebSocket {
         // Resume sending audio data
         this.isAudioPaused = false;
         this.notifyStatusChange("recording");
-        console.log("Microphone resumed - audio transmission restarted");
+      // console("Microphone resumed - audio transmission restarted");
     }
 
     public endInterview(): void {
@@ -218,7 +285,7 @@ export class PCSWebSocket {
 
         this.isConfigured = false;
         this.notifyStatusChange("disconnected");
-        console.log("Disconnected, all resources cleaned up");
+      // console("Disconnected, all resources cleaned up");
     }
 
     public get configured(): boolean {
@@ -243,5 +310,9 @@ export class PCSWebSocket {
 
     private notifyError(error: string): void {
         this.onErrorListeners.forEach(listener => listener(error));
+    }
+
+    private notifyLanguagePrompt(options: string[]): void {
+        this.onLanguagePromptListeners.forEach(listener => listener(options));
     }
 }

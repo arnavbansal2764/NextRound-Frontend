@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
-import { CSATWebSocket } from "@/lib/upsc/subject/csat-ws"
+import { type CSATConfig, CSATWebSocket } from "@/lib/upsc/subject/csat-ws"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Mic,
@@ -18,6 +18,8 @@ import {
   User,
   CheckCircle,
   Loader2,
+  Globe,
+  Languages,
 } from "lucide-react"
 
 const difficultyLevels = [
@@ -34,22 +36,34 @@ export default function CSATInterview() {
     interviewComplete: false,
     connectionStatus: "disconnected" as "disconnected" | "connected" | "ready" | "complete",
     isLoading: false,
+    showThankYouModal: false,
   })
 
   const [uiState, setUiState] = useState({
     showChat: false,
     showParticipants: false,
     animateResponse: false,
+    setupStep: 1, // Add this to track the setup step
   })
 
   const [responses, setResponses] = useState<string[]>([])
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium")
-
+  const [language, setLanguage] = useState<string>("english")
+  const [showLanguagePrompt, setShowLanguagePrompt] = useState<boolean>(false)
+  const [languageOptions, setLanguageOptions] = useState<string[]>(["English", "Hindi"])
+  const [showLanguageAnimation, setShowLanguageAnimation] = useState<boolean>(false)
+  const [animatingLanguage, setAnimatingLanguage] = useState<string>("english")
   const csatWsRef = useRef<CSATWebSocket | null>(null)
   const responseEndRef = useRef<HTMLDivElement | null>(null)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
   const audioVisualizerRef = useRef<HTMLCanvasElement | null>(null)
   const animationFrameRef = useRef<number | null>(null)
+
+  // Add these new state variables for user information
+  const [userInfo, setUserInfo] = useState({
+    name: "",
+    email: "",
+  })
 
   // Initialize CSAT WebSocket instance
   useEffect(() => {
@@ -75,6 +89,7 @@ export default function CSATInterview() {
             ...prev,
             interviewComplete: true,
             isRecording: false,
+            showThankYouModal: true,
           }))
           // Remove the automatic reset here
           break
@@ -95,14 +110,46 @@ export default function CSATInterview() {
       setResponses((prev) => [...prev, `Error: ${error}`])
       setInterviewState((prev) => ({ ...prev, isLoading: false }))
     })
+    ws.addLanguagePromptListener((options) => {
+    // console("Language selection prompt received with options:", options)
+      setLanguageOptions(options)
 
+      // Show the language animation
+      setShowLanguageAnimation(true)
+
+      // Set the animating language to the current language
+      setAnimatingLanguage(language)
+
+      // After a short delay to show the animation, send the language
+      setTimeout(() => {
+        if (csatWsRef.current) {
+        // console(`Automatically sending language selection: ${language}`)
+          try {
+            csatWsRef.current.selectLanguage(language)
+            // Add a confirmation message to the responses
+            setResponses((prev) => [
+              ...prev,
+              `Selected language: ${language.charAt(0).toUpperCase() + language.slice(1)}`,
+            ])
+          } catch (error) {
+            console.error("Error sending language selection:", error)
+            setResponses((prev) => [...prev, `Error selecting language: ${error}`])
+          }
+
+          // Hide the animation after sending
+          setTimeout(() => {
+            setShowLanguageAnimation(false)
+          }, 1500)
+        }
+      }, 2000) // Show animation for 2 seconds before sending
+    })
     return () => {
       ws.disconnect()
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
       }
     }
-  }, [])
+  }, [language])
 
   // Audio visualizer effect
   useEffect(() => {
@@ -165,13 +212,47 @@ export default function CSATInterview() {
     setInterviewState((prev) => ({ ...prev, isLoading: true }))
     try {
       if (!csatWsRef.current) return
-
-      await csatWsRef.current.configure({ difficulty })
+      const config: CSATConfig = {
+        difficulty: difficulty as "easy" | "medium" | "hard",
+        // No user info or language sent in initial config
+      }
+    // console("Sending initial configuration:", config)
+      await csatWsRef.current.configure(config)
     } catch (error) {
       console.error("Error configuring CSAT interview:", error)
       setInterviewState((prev) => ({ ...prev, isLoading: false }))
     }
   }
+  // Update the selectLanguage function to log more details and ensure the message is sent
+  const selectLanguage = (selectedLanguage: string) => {
+    const normalizedLanguage = selectedLanguage.toLowerCase()
+    setLanguage(normalizedLanguage)
+    setShowLanguagePrompt(false)
+
+    if (csatWsRef.current) {
+    // console(`Sending language selection: ${normalizedLanguage}`)
+      try {
+        csatWsRef.current.selectLanguage(normalizedLanguage)
+        // Add a confirmation message to the responses
+        setResponses((prev) => [...prev, `Selected language: ${selectedLanguage}`])
+      } catch (error) {
+        console.error("Error sending language selection:", error)
+        setResponses((prev) => [...prev, `Error selecting language: ${error}`])
+      }
+    } else {
+      console.error("WebSocket reference is not available")
+      setResponses((prev) => [...prev, "Error: Cannot select language, connection not available"])
+    }
+  }
+
+  // Add this after the useEffect hooks
+  useEffect(() => {
+    if (showLanguagePrompt && languageOptions.length > 0) {
+    // console("Language selection prompt received with options:", languageOptions)
+      // The message from backend has already been processed by the WebSocket class
+      // and the options are now available in the languageOptions state
+    }
+  }, [showLanguagePrompt, languageOptions])
 
   const startRecording = async () => {
     try {
@@ -215,17 +296,24 @@ export default function CSATInterview() {
       interviewComplete: false,
       connectionStatus: "disconnected",
       isLoading: false,
+      showThankYouModal: false,
     })
     setUiState({
       showChat: false,
       showParticipants: false,
       animateResponse: false,
+      setupStep: 1,
     })
     setResponses([])
+    setShowLanguageAnimation(false)
     if (csatWsRef.current) {
       csatWsRef.current.disconnect()
       csatWsRef.current = new CSATWebSocket("wss://ws3.nextround.tech/upsc-csat")
     }
+  }
+
+  const showEndInterviewModal = () => {
+    setInterviewState((prev) => ({ ...prev, showThankYouModal: true }))
   }
 
   const endInterview = () => {
@@ -253,7 +341,13 @@ export default function CSATInterview() {
     }))
 
   const handleModalAction = (action: "close" | "new") => {
+    if (action === "close") {
+      // End the interview when the user clicks "Close"
+      endInterview()
+    }
+
     resetInterview()
+
     if (action === "new") {
       // Additional logic for starting a new interview if needed
       configureAndStartInterview()
@@ -275,6 +369,11 @@ export default function CSATInterview() {
     }
   }
 
+  // Function to handle language selection in setup
+  const handleSetupLanguageChange = (selectedLanguage: string) => {
+    setLanguage(selectedLanguage.toLowerCase())
+  }
+
   if (!interviewState.isConfigured) {
     return (
       <motion.div
@@ -293,78 +392,169 @@ export default function CSATInterview() {
               CSAT Interview Practice
             </h2>
 
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
-            >
-              <h2 className="text-xl font-bold mb-4 text-center text-blue-300">What to expect:</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
-                  <BookOpen className="h-8 w-8 text-blue-400 mb-2 mx-auto" />
-                  <p className="text-center text-sm">Logical reasoning and analytical ability questions</p>
-                </div>
-                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
-                  <BookOpen className="h-8 w-8 text-purple-400 mb-2 mx-auto" />
-                  <p className="text-center text-sm">Data interpretation and numerical aptitude challenges</p>
-                </div>
-                <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
-                  <BookOpen className="h-8 w-8 text-pink-400 mb-2 mx-auto" />
-                  <p className="text-center text-sm">Reading comprehension and decision-making scenarios</p>
-                </div>
-              </div>
-            </motion.div>
+            {uiState.setupStep === 1 ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
+                >
+                  <h2 className="text-xl font-bold mb-4 text-center text-blue-300">
+                    Benefits of CSAT Interview Practice
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
+                      <BookOpen className="h-8 w-8 text-blue-400 mb-2 mx-auto" />
+                      <p className="text-center text-sm">Realistic interview simulation with AI-powered questions</p>
+                    </div>
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
+                      <BookOpen className="h-8 w-8 text-purple-400 mb-2 mx-auto" />
+                      <p className="text-center text-sm">
+                        Practice in English or Hindi to improve language proficiency
+                      </p>
+                    </div>
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
+                      <BookOpen className="h-8 w-8 text-pink-400 mb-2 mx-auto" />
+                      <p className="text-center text-sm">
+                        Adjustable difficulty levels to match your preparation stage
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
 
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
-            >
-              <h2 className="text-xl font-bold mb-4 text-center text-blue-300">Difficulty Level</h2>
-              <div className="grid grid-cols-3 gap-3">
-                {difficultyLevels.map((levelItem) => (
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
+                >
+                  <h2 className="text-xl font-bold mb-4 text-center text-blue-300">What to expect:</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
+                      <BookOpen className="h-8 w-8 text-blue-400 mb-2 mx-auto" />
+                      <p className="text-center text-sm">Logical reasoning and analytical ability questions</p>
+                    </div>
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
+                      <BookOpen className="h-8 w-8 text-purple-400 mb-2 mx-auto" />
+                      <p className="text-center text-sm">Data interpretation and numerical aptitude challenges</p>
+                    </div>
+                    <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50">
+                      <BookOpen className="h-8 w-8 text-pink-400 mb-2 mx-auto" />
+                      <p className="text-center text-sm">Reading comprehension and decision-making scenarios</p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.6 }}
+                  className="flex justify-center"
+                >
                   <motion.button
-                    key={levelItem.text}
-                    onClick={() => setDifficulty(levelItem.text.toLowerCase() as "easy" | "medium" | "hard")}
+                    onClick={() => setUiState((prev) => ({ ...prev, setupStep: 2 }))}
+                    whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(59, 130, 246, 0.5)" }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-8 py-4 rounded-full font-bold text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg shadow-blue-500/30 transition-all duration-300"
+                  >
+                    Continue to Setup
+                  </motion.button>
+                </motion.div>
+              </motion.div>
+            ) : (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
+                >
+                  <h2 className="text-xl font-bold mb-4 text-center text-blue-300">Interview Setup</h2>
+                  <p className="text-center text-gray-300 mb-4">
+                    Configure your CSAT interview settings below. After configuration, you'll be prompted to select your
+                    preferred language.
+                  </p>
+                </motion.div>
+
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="bg-gray-900/50 backdrop-blur-md rounded-xl p-4 md:p-6 shadow-lg border border-gray-700/50 mb-6"
+                >
+                  <h2 className="text-xl font-bold mb-4 text-center text-blue-300">Difficulty Level</h2>
+                  <div className="grid grid-cols-3 gap-3 mb-6">
+                    {difficultyLevels.map((levelItem) => (
+                      <motion.button
+                        key={levelItem.text}
+                        onClick={() => setDifficulty(levelItem.text.toLowerCase() as "easy" | "medium" | "hard")}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={`p-3 rounded-lg flex flex-col items-center justify-center transition-all duration-200 ${levelItem.text.toLowerCase() === difficulty
+                            ? "bg-blue-500/30 border-2 border-blue-500 text-white"
+                            : "bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700"
+                          }`}
+                      >
+                        <levelItem.icon className="h-6 w-6 mb-1" />
+                        <span className="text-xs font-medium">{levelItem.text}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+
+                  <h2 className="text-xl font-bold mb-4 text-center text-blue-300">Preferred Language</h2>
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    {["English", "Hindi"].map((langOption) => (
+                      <motion.button
+                        key={langOption}
+                        onClick={() => handleSetupLanguageChange(langOption)}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={`p-3 rounded-lg flex flex-col items-center justify-center transition-all duration-200 ${langOption.toLowerCase() === language
+                            ? "bg-purple-500/30 border-2 border-purple-500 text-white"
+                            : "bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700"
+                          }`}
+                      >
+                        <Globe className="h-6 w-6 mb-1" />
+                        <span className="text-xs font-medium">{langOption}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.6 }}
+                  className="flex justify-between"
+                >
+                  <motion.button
+                    onClick={() => setUiState((prev) => ({ ...prev, setupStep: 1 }))}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className={`p-3 rounded-lg flex flex-col items-center justify-center transition-all duration-200 ${levelItem.text.toLowerCase() === difficulty
-                      ? "bg-blue-500/30 border-2 border-blue-500 text-white"
-                      : "bg-gray-700/50 border border-gray-600 text-gray-300 hover:bg-gray-700"
-                      }`}
+                    className="px-6 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-medium transition-all duration-300"
                   >
-                    <levelItem.icon className="h-6 w-6 mb-1" />
-                    <span className="text-xs font-medium">{levelItem.text}</span>
+                    Back
                   </motion.button>
-                ))}
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              className="flex justify-center"
-            >
-              <motion.button
-                onClick={configureAndStartInterview}
-                whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(59, 130, 246, 0.5)" }}
-                whileTap={{ scale: 0.95 }}
-                disabled={interviewState.isLoading}
-                className="px-8 py-4 rounded-full font-bold text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg shadow-blue-500/30 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {interviewState.isLoading ? (
-                  <div className="flex items-center">
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Preparing Interview...
-                  </div>
-                ) : (
-                  "Start CSAT Interview"
-                )}
-              </motion.button>
-            </motion.div>
+                  <motion.button
+                    onClick={configureAndStartInterview}
+                    whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(59, 130, 246, 0.5)" }}
+                    whileTap={{ scale: 0.95 }}
+                    disabled={interviewState.isLoading}
+                    className="px-8 py-4 rounded-full font-bold text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg shadow-blue-500/30 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {interviewState.isLoading ? (
+                      <div className="flex items-center">
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Preparing Interview...
+                      </div>
+                    ) : (
+                      "Start CSAT Interview"
+                    )}
+                  </motion.button>
+                </motion.div>
+              </motion.div>
+            )}
           </motion.div>
         </main>
       </motion.div>
@@ -489,8 +679,8 @@ export default function CSATInterview() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${interviewState.isMicMuted
-                ? "bg-red-500 hover:bg-red-600 shadow-red-500/30"
-                : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
+                  ? "bg-red-500 hover:bg-red-600 shadow-red-500/30"
+                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
                 }`}
               disabled={!interviewState.isRecording || interviewState.interviewComplete}
             >
@@ -506,8 +696,8 @@ export default function CSATInterview() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${interviewState.isRecording
-                ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
-                : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
+                  ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
+                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
                 }`}
               disabled={interviewState.interviewComplete}
             >
@@ -523,8 +713,8 @@ export default function CSATInterview() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${uiState.showChat
-                ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
-                : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
+                  ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
+                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
                 }`}
             >
               <MessageSquare className="w-5 h-5 md:w-6 md:h-6" />
@@ -535,8 +725,8 @@ export default function CSATInterview() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className={`p-3 md:p-4 rounded-full transition-all duration-300 shadow-lg ${uiState.showParticipants
-                ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
-                : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
+                  ? "bg-blue-500 hover:bg-blue-600 shadow-blue-500/30"
+                  : "bg-gray-700 hover:bg-gray-600 shadow-gray-700/30"
                 }`}
             >
               <Users className="w-5 h-5 md:w-6 md:h-6" />
@@ -552,7 +742,7 @@ export default function CSATInterview() {
             </motion.button>
 
             <motion.button
-              onClick={endInterview}
+              onClick={showEndInterviewModal}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className="p-3 md:p-4 rounded-full bg-red-500 hover:bg-red-600 transition-all duration-300 shadow-lg shadow-red-500/30"
@@ -600,9 +790,7 @@ export default function CSATInterview() {
                       // Filter to only show responses at even indices (interviewer responses)
                       .filter((_, index) => index % 2 === 0)
                       // Filter out duplicate responses
-                      .filter((response, index, self) =>
-                        self.findIndex(r => r === response) === index
-                      )
+                      .filter((response, index, self) => self.findIndex((r) => r === response) === index)
                       .map((response, index) => (
                         <motion.div
                           key={index}
@@ -611,9 +799,7 @@ export default function CSATInterview() {
                           transition={{ delay: index * 0.05 }}
                           className="rounded-xl p-3 bg-blue-500/20 border border-blue-500/30"
                         >
-                          <p className="text-sm font-medium mb-1 text-blue-300">
-                            Interviewer
-                          </p>
+                          <p className="text-sm font-medium mb-1 text-blue-300">Interviewer</p>
                           <p className="text-gray-200 text-sm">{response}</p>
                         </motion.div>
                       ))}
@@ -664,7 +850,7 @@ export default function CSATInterview() {
 
       {/* Interview complete modal */}
       <AnimatePresence>
-        {interviewState.interviewComplete && (
+        {interviewState.showThankYouModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -716,6 +902,70 @@ export default function CSATInterview() {
                   Start New Interview
                 </motion.button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Language selection animation */}
+      <AnimatePresence>
+        {showLanguageAnimation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="bg-gray-800/90 backdrop-blur-md rounded-2xl p-6 max-w-lg w-full border border-gray-700/50 shadow-2xl"
+            >
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Globe className="h-8 w-8 text-blue-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-center mb-4 text-white">Language Selection</h2>
+                <p className="text-gray-300 text-center mb-6">
+                  Would you like to conduct this interview in English or Hindi?
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                {languageOptions.map((option) => (
+                  <motion.div
+                    key={option}
+                    className={`p-4 rounded-lg flex flex-col items-center justify-center transition-all duration-200 ${option.toLowerCase() === animatingLanguage
+                        ? "bg-blue-500/30 border-2 border-blue-500 text-white scale-110"
+                        : "bg-gray-700/50 border border-gray-600 text-gray-400"
+                      }`}
+                  >
+                    <Languages
+                      className={`h-8 w-8 mb-2 ${option.toLowerCase() === animatingLanguage ? "text-blue-400" : "text-gray-500"}`}
+                    />
+                    <span className="font-medium">{option}</span>
+                    {option.toLowerCase() === animatingLanguage && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="mt-2 bg-blue-500 rounded-full p-1"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                      </motion.div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+
+              <motion.div
+                initial={{ width: "0%" }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 2 }}
+                className="h-1 bg-blue-500 rounded-full"
+              />
             </motion.div>
           </motion.div>
         )}

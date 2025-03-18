@@ -55,7 +55,7 @@ export class GroupDiscussionWebSocket {
         this.ws.binaryType = "arraybuffer"
 
         this.ws.onopen = () => {
-          console.log("WebSocket connected, sending configuration")
+        // console("WebSocket connected, sending configuration")
           if (this.ws) {
             this.ws.send(JSON.stringify(config))
           }
@@ -105,7 +105,7 @@ export class GroupDiscussionWebSocket {
         this.ws.onclose = () => {
           this.isConfigured = false
           this.notifyStatusChange("disconnected")
-          console.log("WebSocket connection closed")
+        // console("WebSocket connection closed")
         }
       } catch (error) {
         console.error("Error configuring group discussion:", error)
@@ -163,7 +163,7 @@ export class GroupDiscussionWebSocket {
 
       this.isRecording = true
       this.notifyStatusChange("recording")
-      console.log("Recording started with correct audio parameters")
+    // console("Recording started with correct audio parameters")
     } catch (error) {
       console.error("Error starting recording:", error)
       this.notifyError("Failed to start recording")
@@ -190,7 +190,7 @@ export class GroupDiscussionWebSocket {
 
     this.isRecording = false
     this.notifyStatusChange("paused")
-    console.log("Recording stopped")
+  // console("Recording stopped")
   }
 
   public pauseAudio(): void {
@@ -200,7 +200,7 @@ export class GroupDiscussionWebSocket {
     if (this.source && this.processor) {
       this.source.disconnect(this.processor)
       this.isAudioPaused = true
-      console.log("Microphone paused - audio transmission stopped")
+    // console("Microphone paused - audio transmission stopped")
       this.notifyStatusChange("muted")
     }
   }
@@ -212,7 +212,7 @@ export class GroupDiscussionWebSocket {
     if (this.source && this.processor && this.audioContext) {
       this.source.connect(this.processor)
       this.isAudioPaused = false
-      console.log("Microphone resumed - audio transmission restarted")
+    // console("Microphone resumed - audio transmission restarted")
       this.notifyStatusChange("recording")
     }
   }
@@ -221,7 +221,7 @@ export class GroupDiscussionWebSocket {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "ANALYSIS" }))
       this.notifyStatusChange("analyzing")
-      console.log("Requesting analysis of the group discussion...")
+    // console("Requesting analysis of the group discussion...")
     } else {
       this.notifyError("Cannot request analysis: connection is not open")
     }
@@ -238,7 +238,7 @@ export class GroupDiscussionWebSocket {
 
     this.isConfigured = false
     this.notifyStatusChange("disconnected")
-    console.log("Disconnected, all resources cleaned up")
+  // console("Disconnected, all resources cleaned up")
   }
 
   public get configured(): boolean {
