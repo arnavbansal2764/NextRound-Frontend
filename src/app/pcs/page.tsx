@@ -15,6 +15,7 @@ import {
     Loader2,
     User,
     X,
+    LanguagesIcon,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -715,7 +716,7 @@ export default function PCSInterview() {
                             whileTap={{ scale: 0.9 }}
                             className="p-3 md:p-4 rounded-full bg-gray-700 hover:bg-gray-600 transition-all duration-300 shadow-lg shadow-gray-700/30"
                         >
-                            <Globe className="w-5 h-5 md:w-6 md:h-6" />
+                            <LanguagesIcon className="w-5 h-5 md:w-6 md:h-6" />
                         </motion.button>
 
                         <motion.button
