@@ -3,7 +3,7 @@
 import { motion, useAnimation, useInView } from "framer-motion"
 import Image from "next/image"
 import { useEffect, useRef } from "react"
-import { GradientBackground } from "./gradientbg"
+import { GradientBackground } from "./gradient-background"
 import { ArrowRight, Code, Users, FileText, Send } from "lucide-react"
 import { useRouter } from "next/navigation"
 

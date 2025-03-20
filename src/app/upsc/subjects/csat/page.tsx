@@ -21,6 +21,7 @@ import {
   Globe,
   Languages,
 } from "lucide-react"
+import QuestionReader from "@/components/interview/screen-reader"
 
 const difficultyLevels = [
   { text: "Easy", icon: GraduationCap },
@@ -58,7 +59,8 @@ export default function CSATInterview() {
   const chatEndRef = useRef<HTMLDivElement | null>(null)
   const audioVisualizerRef = useRef<HTMLCanvasElement | null>(null)
   const animationFrameRef = useRef<number | null>(null)
-
+  const [questionRead, setQuestionRead] = useState<boolean>(false)
+  const [currentQuestion,setCurrentQuestion] = useState("")
   // Add these new state variables for user information
   const [userInfo, setUserInfo] = useState({
     name: "",
@@ -72,6 +74,9 @@ export default function CSATInterview() {
 
     const handleMessage = (message: string) => {
       setResponses((prev) => [...prev, message])
+      if (!message.includes("Would you like to conduct this interview")){
+        setCurrentQuestion(message);
+      }
       setUiState((prev) => ({ ...prev, animateResponse: true }))
       setTimeout(() => setUiState((prev) => ({ ...prev, animateResponse: false })), 1000)
     }
@@ -106,8 +111,7 @@ export default function CSATInterview() {
 
     ws.addMessageListener(handleMessage)
     ws.addStatusChangeListener(handleStatusChange)
-    ws.addErrorListener((error) => {
-      setResponses((prev) => [...prev, `Error: ${error}`])
+    ws.addErrorListener((error) => { 
       setInterviewState((prev) => ({ ...prev, isLoading: false }))
     })
     ws.addLanguagePromptListener((options) => {
@@ -127,13 +131,10 @@ export default function CSATInterview() {
           try {
             csatWsRef.current.selectLanguage(language)
             // Add a confirmation message to the responses
-            setResponses((prev) => [
-              ...prev,
-              `Selected language: ${language.charAt(0).toUpperCase() + language.slice(1)}`,
-            ])
+           
           } catch (error) {
             console.error("Error sending language selection:", error)
-            setResponses((prev) => [...prev, `Error selecting language: ${error}`])
+           
           }
 
           // Hide the animation after sending
@@ -234,14 +235,14 @@ export default function CSATInterview() {
       try {
         csatWsRef.current.selectLanguage(normalizedLanguage)
         // Add a confirmation message to the responses
-        setResponses((prev) => [...prev, `Selected language: ${selectedLanguage}`])
+        
       } catch (error) {
         console.error("Error sending language selection:", error)
-        setResponses((prev) => [...prev, `Error selecting language: ${error}`])
+        
       }
     } else {
       console.error("WebSocket reference is not available")
-      setResponses((prev) => [...prev, "Error: Cannot select language, connection not available"])
+      
     }
   }
 
@@ -660,7 +661,10 @@ export default function CSATInterview() {
               className="bg-gray-900/50 backdrop-blur-md rounded-xl p-3 md:p-4 max-h-24 md:max-h-32 overflow-y-auto border border-gray-700/50 shadow-lg"
             >
               {responses.length > 0 ? (
+                <>
                 <p className="text-gray-200 text-sm md:text-base">{responses[responses.length - 1]}</p>
+                <QuestionReader question={currentQuestion} questionRead={questionRead} setQuestionRead={setQuestionRead} />
+                </>
               ) : (
                 <p className="text-gray-400 italic text-sm md:text-base">Waiting for the interview to begin...</p>
               )}

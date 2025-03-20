@@ -1,4 +1,3 @@
-
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 
 const client = new PollyClient({
@@ -8,6 +7,15 @@ const client = new PollyClient({
         secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY as string,
     },
 });
+
+// Define available voices with categories
+const POLLY_VOICES = {
+    indian: ["Aditi", "Raveena"],
+    male: ["Matthew"]
+} as const;
+
+// Combine all voices into a single array
+const ALL_VOICES = [...POLLY_VOICES.indian, ...POLLY_VOICES.male];
 
 // Helper function to convert the Polly stream to a Blob-compatible format
 async function streamToBlob(stream: ReadableStream): Promise<Blob> {
@@ -31,10 +39,14 @@ async function streamToBlob(stream: ReadableStream): Promise<Blob> {
 }
 
 export async function synthesizeSpeech(text: string): Promise<string | null> {
+    // Get random voice from combined list
+    const randomVoice = ALL_VOICES[Math.floor(Math.random() * ALL_VOICES.length)];
+    
     const command = new SynthesizeSpeechCommand({
         Text: text,
         OutputFormat: "mp3",
-        VoiceId: "Joanna", // Change this to your preferred voice
+        VoiceId: randomVoice,
+        Engine: "standard"  // Using standard engine for all voices
     });
 
     try {

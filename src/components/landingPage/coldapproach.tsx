@@ -5,7 +5,7 @@ import { Send, Target, Users, Zap, ArrowRight } from "lucide-react"
 import Image from "next/image"
 import { useEffect } from "react"
 import { useInView } from "react-intersection-observer"
-import { GradientBackground } from "./gradientbg"
+import { GradientBackground } from "./gradient-background"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 

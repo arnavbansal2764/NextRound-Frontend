@@ -21,6 +21,7 @@ import {
     LanguagesIcon,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import QuestionReader from "@/components/interview/screen-reader"
 
 export default function HCSInterviewAssistant() {
     // Setup and configuration states
@@ -48,7 +49,7 @@ export default function HCSInterviewAssistant() {
     const [languageSelectionProgress, setLanguageSelectionProgress] = useState<number>(0)
     const [languageSelectionComplete, setLanguageSelectionComplete] = useState<boolean>(false)
     const [isLanguageSelecting, setIsLanguageSelecting] = useState<boolean>(false)
-
+    const [questionRead,setQuestionRead] = useState<boolean>(false)
     // Refs
     const hcsWsRef = useRef<HCSWebSocket | null>(null)
     const responseEndRef = useRef<HTMLDivElement | null>(null)
@@ -56,17 +57,29 @@ export default function HCSInterviewAssistant() {
     const audioVisualizerRef = useRef<HTMLCanvasElement | null>(null)
     const animationFrameRef = useRef<number | null>(null)
     const languageSelectionTimerRef = useRef<NodeJS.Timeout | null>(null)
-
+    const [currentQuestion, setCurrentQuestion] = useState<string>("");
     // Initialize HCS WebSocket instance
     useEffect(() => {
         hcsWsRef.current = new HCSWebSocket("wss://ws5.nextround.tech/hcs")
 
         // Set up event listeners
         hcsWsRef.current.addMessageListener((message) => {
-            setResponses((prev) => [...prev, message])
-            setAnimateResponse(true)
-            setTimeout(() => setAnimateResponse(false), 1000)
-        })
+            setResponses(prev => [...prev, message]);
+
+            // Update current question when new message arrives
+            const newQuestion = message[preferredLanguage as keyof BilingualResponse];
+            if (newQuestion?.includes("Would you like to conduct this interview")) {
+                setCurrentQuestion("");
+            }
+            else{
+                setCurrentQuestion(newQuestion || "");
+            }
+            // Force stop current audio and reset questionRead state
+            setQuestionRead(false);
+
+            setAnimateResponse(true);
+            setTimeout(() => setAnimateResponse(false), 1000);
+        });
 
         hcsWsRef.current.addStatusChangeListener((status) => {
             setConnectionStatus(status)
@@ -74,7 +87,6 @@ export default function HCSInterviewAssistant() {
             if (status === "ready") {
                 setIsConfigured(true)
                 setIsLoading(false)
-                // Auto-start recording when ready
                 startRecording()
             } else if (status === "complete") {
                 setInterviewComplete(true)
@@ -121,12 +133,6 @@ export default function HCSInterviewAssistant() {
         }
     }, [])
 
-    useEffect(() => {
-        // Auto-scroll to the bottom when new responses arrive
-        if (responseEndRef.current) {
-            responseEndRef.current.scrollIntoView({ behavior: "smooth" })
-        }
-    }, [responses])
 
     // Audio visualizer effect
     useEffect(() => {
@@ -322,8 +328,7 @@ export default function HCSInterviewAssistant() {
 
     const getStatusColor = () => {
         switch (connectionStatus) {
-            case "connected":
-                return "bg-blue-500"
+
             case "ready":
                 return "bg-green-500"
             case "complete":
@@ -685,10 +690,18 @@ export default function HCSInterviewAssistant() {
                             transition={{ duration: 0.5 }}
                             className="bg-gray-900/50 backdrop-blur-md rounded-xl p-3 md:p-4 max-h-24 md:max-h-32 overflow-y-auto border border-gray-700/50 shadow-lg"
                         >
-                            {responses.length > 0 ? (
-                                <p className="text-gray-200 text-sm md:text-base">
-                                    {responses[responses.length - 1][preferredLanguage as keyof BilingualResponse]}
-                                </p>
+                            {currentQuestion.length > 0 ? (
+                                <div className="relative">
+                                    <p className="text-gray-200 text-sm md:text-base">
+                                       {currentQuestion}
+                                    </p>
+
+                                    <QuestionReader
+                                        question={currentQuestion}
+                                        questionRead={questionRead}
+                                        setQuestionRead={setQuestionRead}
+                                    />
+                                </div>
                             ) : (
                                 <p className="text-gray-400 italic text-sm md:text-base">Waiting for the interview to begin...</p>
                             )}

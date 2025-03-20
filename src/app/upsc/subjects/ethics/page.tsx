@@ -22,6 +22,7 @@ import {
   Loader2,
   User,
 } from "lucide-react"
+import QuestionReader from "@/components/interview/screen-reader"
 
 const difficultyLevels = [
   { text: "Easy", icon: GraduationCap },
@@ -54,12 +55,13 @@ export default function EthicsInterview() {
   const [languageOptions, setLanguageOptions] = useState<string[]>(["English", "Hindi"])
   const [showLanguageAnimation, setShowLanguageAnimation] = useState<boolean>(false)
   const [animatingLanguage, setAnimatingLanguage] = useState<string>("english")
-
+  const [questionRead, setQuestionRead] = useState<boolean>(false)
   const ethicsWsRef = useRef<EthicsWebSocket | null>(null)
   const responseEndRef = useRef<HTMLDivElement | null>(null)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
   const audioVisualizerRef = useRef<HTMLCanvasElement | null>(null)
   const animationFrameRef = useRef<number | null>(null)
+  const [currentQuestion, setCurrentQuestion] = useState("")
 
   // Initialize Ethics WebSocket instance
   useEffect(() => {
@@ -68,6 +70,9 @@ export default function EthicsInterview() {
 
     const handleMessage = (message: string) => {
       setResponses((prev) => [...prev, message])
+      if (!message.includes("Would you like to conduct this interview")) {
+        setCurrentQuestion(message);
+      }
       setUiState((prev) => ({ ...prev, animateResponse: true }))
       setTimeout(() => setUiState((prev) => ({ ...prev, animateResponse: false })), 1000)
     }
@@ -648,11 +653,12 @@ export default function EthicsInterview() {
               className="bg-gray-900/50 backdrop-blur-md rounded-xl p-3 md:p-4 max-h-24 md:max-h-32 overflow-y-auto border border-gray-700/50 shadow-lg"
             >
               {responses.length > 0 ? (
-                <p className="text-gray-200 text-sm md:text-base">{responses[responses.length - 1]}</p>
+                <>
+                  <p className="text-gray-200 text-sm md:text-base">{responses[responses.length - 1]}</p>
+                  <QuestionReader question={currentQuestion} questionRead={questionRead} setQuestionRead={setQuestionRead} />
+                </>
               ) : (
-                <p className="text-gray-400 italic text-sm md:text-base">
-                  Waiting for the ethics interview to begin...
-                </p>
+                <p className="text-gray-400 italic text-sm md:text-base">Waiting for the interview to begin...</p>
               )}
             </motion.div>
           </motion.div>

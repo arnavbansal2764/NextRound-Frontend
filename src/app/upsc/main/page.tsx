@@ -47,6 +47,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
+import QuestionReader from "@/components/interview/screen-reader"
 
 interface BoardMember {
     name: string
@@ -218,7 +219,7 @@ export default function UPSCInterviewSimulatorOld() {
     const [isUsingText, setIsUsingText] = useState<boolean>(false)
     const [isSummaryLoading, setIsSummaryLoading] = useState<boolean>(false)
     const [summaryError, setSummaryError] = useState<string | null>(null)
-
+    const [questionRead,setQuestionRead] = useState(false);
     // New state variables for language support
     const [language, setLanguage] = useState<string>("english")
     const [languageOptions, setLanguageOptions] = useState<string[]>([])
@@ -444,12 +445,6 @@ export default function UPSCInterviewSimulatorOld() {
         }
     }, [connectionStatus]) // Check whenever connection status changes
 
-    // Auto-scroll to the bottom when new questions arrive
-    useEffect(() => {
-        if (questionEndRef.current) {
-            questionEndRef.current.scrollIntoView({ behavior: "smooth" })
-        }
-    }, [questions])
 
     const configureAndStartInterview = async () => {
         // Validate user info
@@ -635,7 +630,7 @@ export default function UPSCInterviewSimulatorOld() {
             setSetupStep(1);
 
             // Navigate back to home/setup page
-            router.push('/upsc/main');
+            router.refresh();
         }
     };
 
@@ -834,7 +829,7 @@ export default function UPSCInterviewSimulatorOld() {
                 animate={{ opacity: 1 }}
                 className="flex flex-col min-h-screen w-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white overflow-y-auto"
             >
-                <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-full">
+                <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-full pt-16">
                     {/* Progress indicator */}
                     <div className="mb-8">
                         <div className="flex items-center justify-center">
@@ -1164,10 +1159,6 @@ export default function UPSCInterviewSimulatorOld() {
                         )}
                     </AnimatePresence>
                 </main>
-
-                <footer className="bg-gray-900 py-4 text-center text-sm text-gray-400 border-t border-gray-800">
-                    © 2025 NextRound - UPSC Interview Simulator
-                </footer>
             </motion.div>
         )
     }
@@ -1321,6 +1312,7 @@ export default function UPSCInterviewSimulatorOld() {
                                 {currentQuestion ? (
                                     <div className="space-y-2">
                                         <p className="text-gray-200 text-base md:text-lg">{currentQuestion.question}</p>
+                                        <QuestionReader question={currentQuestion.question || ""} questionRead={questionRead} setQuestionRead={setQuestionRead} />
                                     </div>
                                 ) : (
                                     <p className="text-gray-400 italic">Waiting for the interview to begin...</p>

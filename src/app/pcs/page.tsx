@@ -18,6 +18,7 @@ import {
     LanguagesIcon,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import QuestionReader from "@/components/interview/screen-reader"
 
 export default function PCSInterview() {
     // Setup and configuration states
@@ -53,16 +54,29 @@ export default function PCSInterview() {
     const audioVisualizerRef = useRef<HTMLCanvasElement | null>(null)
     const animationFrameRef = useRef<number | null>(null)
     const languageSelectionTimerRef = useRef<NodeJS.Timeout | null>(null)
-
+    const [currentQuestion, setCurrentQuestion] = useState<string>("");
+    const [questionRead, setQuestionRead] = useState<boolean>(false)
     // Initialize PCS WebSocket instance
     useEffect(() => {
         pcsWsRef.current = new PCSWebSocket("wss://ws5.nextround.tech/pcs")
 
         // Set up event listeners
         pcsWsRef.current.addMessageListener((message) => {
-            setResponses((prev) => [...prev, message])
-            setAnimateResponse(true)
-            setTimeout(() => setAnimateResponse(false), 1000)
+            setResponses(prev => [...prev, message]);
+
+            // Update current question when new message arrives
+            const newQuestion = message[preferredLanguage as keyof BilingualResponse];
+            if (newQuestion?.includes("Would you like to conduct this interview")) {
+                setCurrentQuestion("");
+            }
+            else {
+                setCurrentQuestion(newQuestion || "");
+            }
+            // Force stop current audio and reset questionRead state
+            setQuestionRead(false);
+
+            setAnimateResponse(true);
+            setTimeout(() => setAnimateResponse(false), 1000);
         })
 
         pcsWsRef.current.addStatusChangeListener((status) => {
@@ -667,10 +681,18 @@ export default function PCSInterview() {
                             transition={{ duration: 0.5 }}
                             className="bg-gray-900/50 backdrop-blur-md rounded-xl p-3 md:p-4 max-h-24 md:max-h-32 overflow-y-auto border border-gray-700/50 shadow-lg"
                         >
-                            {responses.length > 0 ? (
-                                <p className="text-gray-200 text-sm md:text-base">
-                                    {responses[responses.length - 1][preferredLanguage as keyof BilingualResponse]}
-                                </p>
+                            {currentQuestion.length > 0 ? (
+                                <div className="relative">
+                                    <p className="text-gray-200 text-sm md:text-base">
+                                        {currentQuestion}
+                                    </p>
+
+                                    <QuestionReader
+                                        question={currentQuestion}
+                                        questionRead={questionRead}
+                                        setQuestionRead={setQuestionRead}
+                                    />
+                                </div>
                             ) : (
                                 <p className="text-gray-400 italic text-sm md:text-base">Waiting for the interview to begin...</p>
                             )}
