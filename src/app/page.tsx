@@ -1,14 +1,14 @@
-import ColdApproach from "@/components/landingpage/coldapproach";
-import CTASection from "@/components/landingpage/cta-section";
-import ExamCategories from "@/components/landingpage/examcategories";
-import Features from "@/components/landingpage/features";
-import Hero from "@/components/landingpage/hero";
-import InterviewSimulation from "@/components/landingpage/interview-simulation";
-import InterviewUICollage from "@/components/landingpage/interview-ui";
-import ResumeEnhancer from "@/components/landingpage/resumeEnhancer";
-import Roadmap from "@/components/landingpage/roadmap";
-import Stats from "@/components/landingpage/stats";
-import Testimonials from "@/components/landingpage/testimonials";
+import ColdApproach from "@/components/landing/coldapproach";
+import CTASection from "@/components/landing/cta-section";
+import ExamCategories from "@/components/landing/examcategories";
+import Features from "@/components/landing/features";
+import Hero from "@/components/landing/hero";
+import InterviewSimulation from "@/components/landing/interview-simulation";
+import InterviewUICollage from "@/components/landing/interview-ui";
+import ResumeEnhancer from "@/components/landing/resumeEnhancer";
+import Roadmap from "@/components/landing/roadmap";
+import Stats from "@/components/landing/stats";
+import Testimonials from "@/components/landing/testimonials";
 
 export default function Home() {
   return (
