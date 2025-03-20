@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Facebook, Twitter, Instagram, Linkedin, Github } from "lucide-react"
 
 export default function Footer() {
+  
   const footerLinks = [
     {
       title: "Exam Categories",

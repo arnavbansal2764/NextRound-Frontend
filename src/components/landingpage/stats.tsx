@@ -10,6 +10,7 @@ export default function Stats() {
         threshold: 0.1,
     })
 
+    
     const stats = [
         {
             icon: <Users className="h-8 w-8 text-purple-500" />,

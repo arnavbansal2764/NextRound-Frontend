@@ -7,6 +7,7 @@ import { useEffect } from "react"
 import { useInView } from "react-intersection-observer"
 import Image from "next/image"
 
+
 export default function Features() {
     const features = [
         {

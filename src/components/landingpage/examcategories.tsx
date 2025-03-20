@@ -43,6 +43,7 @@ export default function ExamCategories() {
             subjects: ["Economics", "Geography", "History", "Polity", "Science & Tech"],
         },
     ]
+    
 
     return (
         <section className="relative py-24 overflow-hidden">

@@ -1,5 +1,3 @@
-import Footer from "@/components/footer/Footer";
-import Header from "@/components/header/Header";
 import ColdApproach from "@/components/landingpage/coldapproach";
 import CTASection from "@/components/landingpage/cta-section";
 import ExamCategories from "@/components/landingpage/examcategories";

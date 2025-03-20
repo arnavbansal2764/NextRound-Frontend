@@ -8,6 +8,7 @@ import { useEffect } from "react"
 import Link from "next/link"
 import { GradientBackground } from "./gradient-background"
 
+
 export default function CTASection() {
     const controls = useAnimation()
     const [ref, inView] = useInView({

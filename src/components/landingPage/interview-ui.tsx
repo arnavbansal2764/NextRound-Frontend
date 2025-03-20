@@ -7,6 +7,7 @@ import { GradientBackground } from "./gradient-background"
 import { ArrowRight, Code, Users, FileText, Send } from "lucide-react"
 import { useRouter } from "next/navigation"
 
+
 export default function InterviewUICollage() {
     const images = [
         {

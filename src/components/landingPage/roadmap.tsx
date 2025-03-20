@@ -2,6 +2,7 @@
 
 import { motion, useAnimation, useScroll, useTransform } from "framer-motion"
 import { CheckCircle, ChevronRight, Code, Users, FileText, Send } from "lucide-react"
+
 import { GradientBackground } from "./gradient-background"
 import { useEffect, useRef } from "react"
 import { useInView } from "react-intersection-observer"

@@ -83,6 +83,7 @@ export default function Hero() {
                             transition={{ delay: 0.6, duration: 0.5 }}
                             className="space-y-3"
                         >
+                            
                             {[
                                 "Realistic interview simulations with expert panelists",
                                 "Specialized HCS & PCS interview preparation",
