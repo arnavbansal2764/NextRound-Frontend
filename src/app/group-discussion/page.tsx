@@ -18,6 +18,7 @@ import {
   CheckCircle2,
 } from "lucide-react"
 import { GroupDiscussionWebSocket, type GDConfig, type GDMessage } from "@/lib/gd-ws"
+import QuestionReader from "@/components/interview/screen-reader"
 
 const topicSuggestions = [
   "Is AI a threat to human jobs?",
@@ -67,7 +68,7 @@ export default function GroupDiscussion() {
   const [activeStep, setActiveStep] = useState<number>(0)
   const [currentBotMessage, setCurrentBotMessage] = useState<GDMessage | null>(null)
   const [discussionStage, setDiscussionStage] = useState<"setup" | "active" | "analysis" | "complete">("setup")
-
+  const [questionRead,setQuestionRead] = useState<boolean>(false)
   // Refs
   const gdWsRef = useRef<GroupDiscussionWebSocket | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
@@ -848,6 +849,7 @@ export default function GroupDiscussion() {
                     <p className={`font-medium ${getBotTextColor(currentBotMessage.name)}`}>{currentBotMessage.name}</p>
                   </div>
                   <p className="text-gray-300 pl-13">{currentBotMessage.content}</p>
+                  <QuestionReader question = {currentBotMessage.content} questionRead={questionRead} setQuestionRead={setQuestionRead}/>
                 </motion.div>
               )}
 
